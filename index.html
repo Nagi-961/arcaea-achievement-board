@@ -2,60 +2,108 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Arcaea Achievement Generator</title>
+    <!-- ⬇️ スマホ向けに画面サイズを最適化するタグを追加 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcaea Multi Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        body { background: #0a0a0a; color: #fff; font-family: sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 40px; }
-        #upload-screen { text-align: center; margin-top: 10vh; background: #1a1a1a; padding: 50px; border-radius: 12px; border: 2px dashed #444; width: 600px; max-width: 90%; }
-        #upload-screen h1 { color: #1e90ff; margin-bottom: 10px; }
-        #upload-screen p { color: #aaa; margin-bottom: 30px; line-height: 1.6; }
+        /* ⬇️ flexでの強制中央寄せをやめました */
+        body { background: #0a0a0a; color: #fff; font-family: sans-serif; margin: 0; padding: 20px; }
+        
+        #upload-screen { text-align: center; margin: 10vh auto; background: #1a1a1a; padding: 50px 20px; border-radius: 12px; border: 2px dashed #444; max-width: 600px; width: 90%; }
         .file-upload-btn { background: #1e90ff; color: #fff; padding: 15px 30px; font-size: 1.2em; border-radius: 8px; cursor: pointer; display: inline-block; font-weight: bold; transition: 0.2s; }
-        .file-upload-btn:hover { background: #0073e6; }
         input[type="file"] { display: none; }
         
-        .capture-area { width: 1430px; background: #121212; padding: 30px 40px; box-sizing: border-box; border-radius: 8px; border: 1px solid #222; margin-bottom: 40px; }
+        #tab-menu { display: none; justify-content: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab-btn { background: #333; color: #fff; border: 2px solid #555; padding: 12px 30px; font-size: 1.1em; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .tab-btn.active { background: #1e90ff; border-color: #1e90ff; }
+
+        /* ⬇️ 横スクロールを許可するラッパー */
+        #app-content { width: 100%; overflow-x: auto; padding-bottom: 80px; }
+
+        /* PCでの基本スタイル */
+        .capture-area { width: 1430px; background: #121212; padding: 30px 40px; box-sizing: border-box; border-radius: 8px; border: 1px solid #222; margin: 0 auto 40px auto; }
+        
+        /* ⬇️ ここが左端見切れを直すスマホ用CSS！ 画面幅が足りない時は左詰めに変更します */
+        @media (max-width: 1470px) {
+            .capture-area { margin: 0 0 40px 0; }
+        }
+
         .header-container { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px; }
         .header-container h1 { margin: 0; color: #eee; letter-spacing: 2px; font-size: 2.2em; }
         .title-sub { color: #1e90ff; font-size: 0.7em; letter-spacing: 1px; }
+        
         .summary-table { border-collapse: collapse; font-size: 0.9em; background: #0a0a0a; border: 1px solid #444; }
         .summary-table th, .summary-table td { border: 1px solid #333; padding: 4px 12px; text-align: right; font-family: monospace; font-weight: bold; }
         .summary-table th { background: #1a1a1a; color: #eee; text-align: center; font-family: sans-serif; font-size: 0.85em; }
         .summary-table .lvl-col { text-align: center; color: #fff; background: #1a1a1a; font-family: sans-serif; }
         .summary-table .rate { color: #00e676; }
+        
         .constant-section { margin-bottom: 35px; }
         .constant-header { font-size: 1.6em; font-weight: bold; border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 15px; color: #ccc; }
         .tile-container { display: flex; flex-wrap: wrap; gap: 12px; }
         .tile { width: 100px; height: 100px; position: relative; border-radius: 0px; border: 2px solid #444; overflow: hidden; background: #222; box-sizing: border-box; }
         .jacket { width: 100%; height: 100%; object-fit: cover; }
         .noplay .jacket { filter: grayscale(100%) brightness(30%); }
-        .grade { position: absolute; bottom: 0; left: 0; width: 100%; text-align: center; font-size: 0.85em; font-weight: bold; padding: 2px 0; z-index: 2; border-top: 1px solid #333; }
+        
+        .grade, .score-bar { position: absolute; bottom: 0; left: 0; width: 100%; text-align: center; font-size: 0.85em; font-weight: bold; padding: 2px 0; z-index: 2; border-top: 1px solid #333; }
+        .score-bar { font-family: monospace; letter-spacing: 0.5px; }
+        
         .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; opacity: 0; transition: opacity 0.2s; z-index: 3; padding: 4px; box-sizing: border-box; }
         .tile:hover .overlay { opacity: 1; }
         .o-title { font-size: 0.75em; margin-bottom: 5px; font-weight: bold; word-break: break-all; }
         .o-score { font-size: 0.8em; font-family: monospace; color: #00e676; }
+        .o-rank { font-size: 0.9em; font-weight: bold; margin-top: 2px; }
+        
         .controls { position: fixed; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 999; }
-        .btn-export { background: #1e90ff; color: white; border: none; padding: 10px 20px; font-size: 0.95em; font-weight: bold; border-radius: 4px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.5); width: 180px; text-align: center; }
+        .btn-export { background: #1e90ff; color: white; border: none; padding: 10px 20px; font-size: 0.95em; font-weight: bold; border-radius: 4px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.5); width: 180px; text-align: center; display: none; }
         .btn-export:hover { background: #0073e6; }
+        
+        /* スマホ向けに保存ボタンを少し小さくして邪魔にならないようにする */
+        @media (max-width: 768px) {
+            .controls { top: 10px; right: 10px; transform: scale(0.85); transform-origin: top right; }
+        }
     </style>
 </head>
 <body>
 
     <div id="upload-screen">
-        <h1>Arcaea 10.0+ Dashboard</h1>
-        <p>Arcaea Onlineから取得した <b>all.json</b> ファイルを選択してください。<br>自動で実績ポスターが生成されます。</p>
+        <h1>Arcaea Multi Dashboard</h1>
+        <p>Arcaea Onlineから取得した<br><b>all.json</b> を選択してください。</p>
         <label class="file-upload-btn">
             📂 all.json を選択
             <input type="file" id="json-input" accept=".json">
         </label>
     </div>
 
-    <div id="controls" class="controls" style="display: none;">
-        <button id="btn-11" class="btn-export" onclick="exportImage('area-11', 'arcaea_11_over.png', 'btn-11')">📷 11以上を保存</button>
-        <button id="btn-10p" class="btn-export" onclick="exportImage('area-10p', 'arcaea_10_plus.png', 'btn-10p')">📷 10+を保存</button>
-        <button id="btn-10" class="btn-export" onclick="exportImage('area-10', 'arcaea_10.png', 'btn-10')">📷 10を保存</button>
+    <div id="tab-menu">
+        <button id="tab-rank" class="tab-btn active" onclick="switchMode('rank')">🎖️ 実績ランク表</button>
+        <button id="tab-score" class="tab-btn" onclick="switchMode('score')">🔢 スコア特化表</button>
     </div>
 
-    <div id="app-content"></div>
+    <!-- ⬇️ はみ出し防止スクロールラッパー -->
+    <div id="app-content">
+        
+    <div id="view-rank" style="display: none;">
+        <div class="controls">
+            <button id="btn-rank-11" class="btn-export" onclick="exportImage('rank-area-11', 'arcaea_rank_11.png', 'btn-rank-11')">📷 11以上を保存</button>
+            <button id="btn-rank-10p" class="btn-export" onclick="exportImage('rank-area-10p', 'arcaea_rank_10p.png', 'btn-rank-10p')">📷 10+を保存</button>
+            <button id="btn-rank-10" class="btn-export" onclick="exportImage('rank-area-10', 'arcaea_rank_10.png', 'btn-rank-10')">📷 10を保存</button>
+        </div>
+        <div id="rank-content"></div>
+    </div>
+    
+        
+    <div id="view-score" style="display: none;">
+        <div class="controls">
+            <button id="btn-score-11" class="btn-export" onclick="exportImage('score-area-11', 'arcaea_score_11.png', 'btn-score-11')">📷 11以上を保存</button>
+            <button id="btn-score-10p" class="btn-export" onclick="exportImage('score-area-10p', 'arcaea_score_10p.png', 'btn-score-10p')">📷 10+を保存</button>
+            <button id="btn-score-10" class="btn-export" onclick="exportImage('score-area-10', 'arcaea_score_10.png', 'btn-score-10')">📷 10を保存</button>
+        </div>
+        <div id="score-content"></div>
+    </div>
+    
+    </div>
 
     <script>
         const MASTER_DATA = [{"song_id": "ii", "title": "\u035f\u035d\u035e\u2161\u0301\u0315", "difficulty": "FTR", "level": "10+", "constant": 10.8}, {"song_id": "ifi", "title": "#1f1e33", "difficulty": "FTR", "level": "11", "constant": 11.1}, {"song_id": "temptationgc", "title": "10pt8ion", "difficulty": "ETR", "level": "10", "constant": 10.5}, {"song_id": "eightem", "title": "8-EM", "difficulty": "ETR", "level": "10", "constant": 10.3}, {"song_id": "nnglooms", "title": "99 Glooms", "difficulty": "FTR", "level": "10", "constant": 10.3}, {"song_id": "infinity", "title": "[X]", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "abstrusedilemma", "title": "Abstruse Dilemma", "difficulty": "FTR", "level": "11", "constant": 11.3}, {"song_id": "acidgod", "title": "Acid God", "difficulty": "ETR", "level": "10+", "constant": 10.9}, {"song_id": "aegleseeker", "title": "Aegleseeker", "difficulty": "FTR", "level": "11", "constant": 11.2}, {"song_id": "aethercrest", "title": "Aether Crest: Astral", "difficulty": "ETR", "level": "11", "constant": 11.5}, {"song_id": "aethercrest", "title": "Aether Crest: Astral", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "alephzero", "title": "Aleph-0", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "alexandrite", "title": "Alexandrite", "difficulty": "FTR", "level": "10", "constant": 10.0}, {"song_id": "altale", "title": "Altale", "difficulty": "BYD", "level": "10", "constant": 10.0}, {"song_id": "alterego", "title": "ALTER EGO", "difficulty": "ETR", "level": "11", "constant": 11.3}, {"song_id": "alterego", "title": "ALTER EGO", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "altergate", "title": "AlterGate", "difficulty": "FTR", "level": "10+", "constant": 10.7}, {"song_id": "amazingmightyyyy", "title": "AMAZING MIGHTYYYY!!!!", "difficulty": "FTR", "level": "10+", "constant": 10.7}, {"song_id": "andrevivemelody", "title": "And Revive The Melody", "difficulty": "FTR", "level": "10+", "constant": 10.9}, {"song_id": "andorxor", "title": "ANDORXOR", "difficulty": "ETR", "level": "10+", "constant": 10.8}, {"song_id": "angelsboundary", "title": "Angel's Boundary", "difficulty": "FTR", "level": "10", "constant": 10.2}, {"song_id": "arcanaeden", "title": "Arcana Eden", "difficulty": "BYD", "level": "11", "constant": 11.6}, {"song_id": "arcanaeden", "title": "Arcana Eden", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "arghena", "title": "Arghena", "difficulty": "FTR", "level": "11", "constant": 11.3}, {"song_id": "astralquant", "title": "Astral Quantization", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "attraqtia", "title": "AttraqtiA", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "aurgelmir", "title": "Aurgelmir", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "axiumcrisis", "title": "Axium Crisis", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "axiumcrisis", "title": "Axium Divergence", "difficulty": "BYD", "level": "11", "constant": 11.3}, {"song_id": "backtobasics", "title": "Back to Basics", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "balor", "title": "Balor", "difficulty": "ETR", "level": "10", "constant": 10.1}, {"song_id": "bethere", "title": "Be There", "difficulty": "BYD", "level": "10", "constant": 10.5}, {"song_id": "blackmind", "title": "Black MInD", "difficulty": "FTR", "level": "10+", "constant": 10.8}, {"song_id": "blazingair", "title": "BlazinG AIR", "difficulty": "ETR", "level": "10", "constant": 10.1}, {"song_id": "blythe", "title": "BlythE", "difficulty": "ETR", "level": "10", "constant": 10.5}, {"song_id": "bookmaker", "title": "Bookmaker (2D Version)", "difficulty": "BYD", "level": "10", "constant": 10.0}, {"song_id": "breachoffaith", "title": "Breach of Faith", "difficulty": "BYD", "level": "10+", "constant": 10.9}, {"song_id": "breachoffaith", "title": "Breach of Faith", "difficulty": "FTR", "level": "10", "constant": 10.3}, {"song_id": "breakbreak", "title": "BREaK! BREaK! BREaK!", "difficulty": "ETR", "level": "10", "constant": 10.3}, {"song_id": "buchigireberserker", "title": "BUCHiGiRE Berserker", "difficulty": "FTR", "level": "10+", "constant": 10.8}, {"song_id": "csqn", "title": "c.s.q.n.", "difficulty": "ETR", "level": "10", "constant": 10.3}, {"song_id": "capella", "title": "Capella", "difficulty": "FTR", "level": "10", "constant": 10.2}, {"song_id": "cataclysmcry", "title": "Cataclysm Cry", "difficulty": "INS", "level": "11+", "constant": 11.8}, {"song_id": "cataclysmcry", "title": "Cataclysm Cry", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "chaos", "title": "CHAOS", "difficulty": "FTR", "level": "10+", "constant": 10.9}, {"song_id": "chaosblast", "title": "CHAOSBLAST", "difficulty": "ETR", "level": "10", "constant": 10.5}, {"song_id": "chromafill", "title": "Chromafill", "difficulty": "FTR", "level": "10", "constant": 10.0}, {"song_id": "chronicle", "title": "Chronicle", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "chronologia", "title": "chronologia", "difficulty": "ETR", "level": "10+", "constant": 10.8}, {"song_id": "climax", "title": "Climax", "difficulty": "FTR", "level": "10", "constant": 10.4}, {"song_id": "codeoblivion", "title": "Code: Oblivion", "difficulty": "ETR", "level": "10+", "constant": 10.9}, {"song_id": "conflict", "title": "conflict", "difficulty": "FTR", "level": "10", "constant": 10.2}, {"song_id": "corpssansorganes", "title": "corps-sans-organes", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "crimsonthrone", "title": "Crimson Throne", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "cryogenic", "title": "Cryogenic", "difficulty": "ETR", "level": "10", "constant": 10.1}, {"song_id": "cyaegha", "title": "Cyaegha", "difficulty": "FTR", "level": "10+", "constant": 10.7}, {"song_id": "cyanine", "title": "cyanine", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "daat", "title": "DA'AT -The First Seeker of Souls-", "difficulty": "FTR", "level": "10+", "constant": 10.9}, {"song_id": "dantalion", "title": "Dantalion", "difficulty": "FTR", "level": "10+", "constant": 10.8}, {"song_id": "deinosphainein", "title": "DEINOS PHAINEIN", "difficulty": "INS", "level": "12", "constant": 12.0}, {"song_id": "deinosphainein", "title": "DEINOS PHAINEIN", "difficulty": "FTR", "level": "10+", "constant": 10.9}, {"song_id": "desertrealm", "title": "Desertrealm", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "designant", "title": "Designant.", "difficulty": "BYD", "level": "11+", "constant": 11.9}, {"song_id": "designant", "title": "Designant.", "difficulty": "FTR", "level": "10+", "constant": 10.9}, {"song_id": "diein", "title": "DIE IN", "difficulty": "ETR", "level": "11", "constant": 11.1}, {"song_id": "diein", "title": "DIE IN", "difficulty": "FTR", "level": "10", "constant": 10.3}, {"song_id": "diesirae", "title": "Dies irae", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "distortedfate", "title": "Distorted Fate", "difficulty": "ETR", "level": "10+", "constant": 10.8}, {"song_id": "dontdie", "title": "Don't Die", "difficulty": "ETR", "level": "10", "constant": 10.1}, {"song_id": "dontfightmusic", "title": "Don't Fight The Music", "difficulty": "ETR", "level": "10+", "constant": 10.7}, {"song_id": "dreadarea", "title": "DREAD AREA", "difficulty": "INS", "level": "11", "constant": 11.4}, {"song_id": "dreadarea", "title": "DREAD AREA", "difficulty": "FTR", "level": "10", "constant": 10.3}, {"song_id": "dropdead", "title": "overdead.", "difficulty": "BYD", "level": "10", "constant": 10.5}, {"song_id": "dualdependency", "title": "Dual Dependency", "difficulty": "ETR", "level": "10", "constant": 10.4}, {"song_id": "dualdoom", "title": "Dual Doom Deathmatch", "difficulty": "ETR", "level": "10", "constant": 10.3}, {"song_id": "dullblade", "title": "Dull Blade", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "desive", "title": "D\u00e9sive", "difficulty": "ETR", "level": "10+", "constant": 10.8}, {"song_id": "edenwacca", "title": "eden", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "egoeimi", "title": "Ego Eimi", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "einherjar", "title": "Einherjar Joker", "difficulty": "BYD", "level": "10+", "constant": 10.9}, {"song_id": "energysynergymatrix", "title": "ENERGY SYNERGY MATRIX", "difficulty": "BYD", "level": "10", "constant": 10.3}, {"song_id": "eternitybreak", "title": "Eternity Break", "difficulty": "ETR", "level": "10", "constant": 10.4}, {"song_id": "etherstrike", "title": "Ether Strike", "difficulty": "FTR", "level": "10", "constant": 10.3}, {"song_id": "felis", "title": "Felis", "difficulty": "FTR", "level": "10", "constant": 10.4}, {"song_id": "fractureray", "title": "Fracture Ray", "difficulty": "FTR", "level": "11", "constant": 11.1}, {"song_id": "freemyself", "title": "Free Myself", "difficulty": "FTR", "level": "10", "constant": 10.0}, {"song_id": "gengaozo", "title": "G e n g a o z o", "difficulty": "FTR", "level": "10", "constant": 10.1}, {"song_id": "garakuta", "title": "Garakuta Doll Play", "difficulty": "FTR", "level": "10", "constant": 10.4}, {"song_id": "genocider", "title": "GENOCIDER", "difficulty": "FTR", "level": "10+", "constant": 10.8}, {"song_id": "gimmedablood", "title": "GIMME DA BLOOD", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "gloryroad", "title": "GLORY\uff1aROAD", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "goodbyemerry", "title": "Good bye, Merry-Go-Round.", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "goodrage", "title": "GOODRAGE", "difficulty": "ETR", "level": "10", "constant": 10.2}, {"song_id": "grandspell", "title": "Grandspell", "difficulty": "FTR", "level": "10", "constant": 10.2}, {"song_id": "grievouslady", "title": "Grievous Lady", "difficulty": "FTR", "level": "11", "constant": 11.1}, {"song_id": "halcyon", "title": "Halcyon", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "heavenlycaress", "title": "Heavenly caress", "difficulty": "BYD", "level": "10+", "constant": 10.9}, {"song_id": "heavensdoor", "title": "Heavensdoor", "difficulty": "BYD", "level": "10+", "constant": 10.8}, {"song_id": "hivemind", "title": "HIVEMIND", "difficulty": "FTR", "level": "10", "constant": 10.0}, {"song_id": "impact", "title": "IMPACT", "difficulty": "BYD", "level": "10", "constant": 10.4}, {"song_id": "incarnator", "title": "INCARNATOR\u2080\u2080", "difficulty": "ETR", "level": "10", "constant": 10.4}, {"song_id": "infinitedim", "title": "INFINITE DIMENSION", "difficulty": "ETR", "level": "10", "constant": 10.1}, {"song_id": "infinitestrife", "title": "Infinite Strife,", "difficulty": "BYD", "level": "10+", "constant": 10.9}, {"song_id": "internetyamero", "title": "INTERNET YAMERO", "difficulty": "FTR", "level": "10", "constant": 10.0}, {"song_id": "invertedworld", "title": "Inverted World", "difficulty": "ETR", "level": "10+", "constant": 10.7}, {"song_id": "izana", "title": "IZANA", "difficulty": "FTR", "level": "10", "constant": 10.3}, {"song_id": "judgement", "title": "Judgement", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "kissinglucifer", "title": "Kissing Lucifer", "difficulty": "FTR", "level": "10", "constant": 10.4}, {"song_id": "laqryma", "title": "La'qryma of the Wasteland", "difficulty": "BYD", "level": "10", "constant": 10.0}, {"song_id": "lamentrain", "title": "Lament Rain", "difficulty": "BYD", "level": "11", "constant": 11.4}, {"song_id": "lamentrain", "title": "Lament Rain", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "lamia", "title": "LAMIA", "difficulty": "FTR", "level": "11", "constant": 11.0}, {"song_id": "lastcelebration", "title": "Last Celebration", "difficulty": "FTR", "level": "10", "constant": 10.4}, {"song_id": "lastendconductor", "title": "lastendconductor", "difficulty": "FTR", "level": "10", "constant": 10.2}, {"song_id": "lethalvoltage", "title": "Lethal Voltage", "difficulty": "FTR", "level": "10", "constant": 10.4}, {"song_id": "liar", "title": "Liar", "difficulty": "FTR", "level": "10", "constant": 10.0}, {"song_id": "libertas", "title": "Libertas", "difficulty": "BYD", "level": "10", "constant": 10.5}, {"song_id": "lightningscrew", "title": "Lightning Screw", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "lilly", "title": "Lilly", "difficulty": "ETR", "level": "10+", "constant": 10.8}, {"song_id": "livefastdieyoung", "title": "Live Fast Die Young", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "logos", "title": "Logos", "difficulty": "FTR", "level": "10", "constant": 10.2}, {"song_id": "lucidtraveler", "title": "Lucid Traveler", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "loschen", "title": "L\u00f6schen", "difficulty": "FTR", "level": "10", "constant": 10.2}, {"song_id": "magnolia", "title": "Magnolia", "difficulty": "FTR", "level": "10", "constant": 10.2}, {"song_id": "maliciousmischance", "title": "Malicious Mischance", "difficulty": "FTR", "level": "10", "constant": 10.2}, {"song_id": "manicjeer", "title": "Manic Jeer", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "marenyx", "title": "MARENYX", "difficulty": "ETR", "level": "10+", "constant": 10.8}, {"song_id": "masqueradelegion", "title": "Masquerade Legion", "difficulty": "FTR", "level": "10", "constant": 10.0}, {"song_id": "medusa", "title": "Medusa", "difficulty": "FTR", "level": "10", "constant": 10.1}, {"song_id": "megalovania", "title": "MEGALOVANIA", "difficulty": "ETR", "level": "10", "constant": 10.5}, {"song_id": "megalovaniarmx", "title": "MEGALOVANIA (Camellia Remix)", "difficulty": "ETR", "level": "10+", "constant": 10.9}, {"song_id": "metamysteria", "title": "Meta-Mysteria", "difficulty": "FTR", "level": "10+", "constant": 10.8}, {"song_id": "metallicpunisher", "title": "Metallic Punisher", "difficulty": "FTR", "level": "10", "constant": 10.3}, {"song_id": "mirinae", "title": "MIRINAE", "difficulty": "FTR", "level": "10", "constant": 10.4}, {"song_id": "mvurbd", "title": "MVURBD", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "mylifeismine", "title": "My life is mine alone!", "difficulty": "ETR", "level": "10", "constant": 10.1}, {"song_id": "neowings", "title": "NEO WINGS", "difficulty": "FTR", "level": "10", "constant": 10.2}, {"song_id": "nhelv", "title": "Nhelv", "difficulty": "BYD", "level": "10+", "constant": 10.9}, {"song_id": "nightmare", "title": "Nightmare", "difficulty": "ETR", "level": "10+", "constant": 10.8}, {"song_id": "nirvluce", "title": "Nirv lucE", "difficulty": "FTR", "level": "10", "constant": 10.2}, {"song_id": "nowayback", "title": "No Way Back", "difficulty": "ETR", "level": "10", "constant": 10.4}, {"song_id": "nullapophenia", "title": "NULL APOPHENIA", "difficulty": "FTR", "level": "10+", "constant": 10.7}, {"song_id": "oblivion", "title": "OBLIVION", "difficulty": "ETR", "level": "10", "constant": 10.1}, {"song_id": "omakeno", "title": "OMAKENO Stroke", "difficulty": "BYD", "level": "10", "constant": 10.3}, {"song_id": "oshamascramble", "title": "Oshama Scramble!", "difficulty": "FTR", "level": "10", "constant": 10.0}, {"song_id": "ouroboros", "title": "ouroboros -twin stroke of the end-", "difficulty": "FTR", "level": "10+", "constant": 10.7}, {"song_id": "overwhelm", "title": "Overwhelm", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "paranoidarc", "title": "Paranoid Arc", "difficulty": "ETR", "level": "10", "constant": 10.5}, {"song_id": "partyvinyl", "title": "Party Vinyl", "difficulty": "BYD", "level": "10", "constant": 10.3}, {"song_id": "pentiment", "title": "Pentiment", "difficulty": "BYD", "level": "11", "constant": 11.5}, {"song_id": "pentiment", "title": "Pentiment", "difficulty": "FTR", "level": "10", "constant": 10.4}, {"song_id": "pragmatism", "title": "PRAGMATISM", "difficulty": "FTR", "level": "10", "constant": 10.1}, {"song_id": "pragmatism", "title": "PRAGMATISM -RESURRECTION-", "difficulty": "BYD", "level": "11", "constant": 11.2}, {"song_id": "primitivelights", "title": "PRIMITIVE LIGHTS", "difficulty": "FTR", "level": "10+", "constant": 10.8}, {"song_id": "pupa", "title": "PUPA", "difficulty": "FTR", "level": "10", "constant": 10.4}, {"song_id": "purpleverse", "title": "Purple Verse", "difficulty": "BYD", "level": "10", "constant": 10.6}, {"song_id": "qovat", "title": "Qovat", "difficulty": "FTR", "level": "10", "constant": 10.4}, {"song_id": "quonwacca", "title": "Quon", "difficulty": "BYD", "level": "10", "constant": 10.2}, {"song_id": "rainofconflict", "title": "Rain of Conflict in a Radiant Abyss", "difficulty": "ETR", "level": "10", "constant": 10.5}, {"song_id": "raysofremnant", "title": "Rays of Remnant", "difficulty": "BYD", "level": "10", "constant": 10.4}, {"song_id": "redandblue", "title": "Red and Blue and Green", "difficulty": "BYD", "level": "10", "constant": 10.2}, {"song_id": "redolentshape", "title": "Redolent Shape", "difficulty": "FTR", "level": "10", "constant": 10.2}, {"song_id": "renegade", "title": "Renegade", "difficulty": "BYD", "level": "10", "constant": 10.2}, {"song_id": "ringedgenesis", "title": "Ringed Genesis", "difficulty": "FTR", "level": "10+", "constant": 10.8}, {"song_id": "riotsystem", "title": "Riot in the System", "difficulty": "ETR", "level": "10", "constant": 10.1}, {"song_id": "riseoftheworld", "title": "Rise of the World", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "rivenpilgrim", "title": "Riven Pilgrimage", "difficulty": "INS", "level": "11", "constant": 11.5}, {"song_id": "rivenpilgrim", "title": "Riven Pilgrimage", "difficulty": "FTR", "level": "10", "constant": 10.4}, {"song_id": "rostpagegene", "title": "ROST PAGE GENE", "difficulty": "FTR", "level": "10", "constant": 10.3}, {"song_id": "saintorsinner", "title": "Saint or Sinner", "difficulty": "BYD", "level": "10", "constant": 10.4}, {"song_id": "scarletlance", "title": "Scarlet Lance", "difficulty": "FTR", "level": "10", "constant": 10.0}, {"song_id": "seclusion", "title": "Seclusion", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "sheriruth", "title": "Sheriruth", "difficulty": "FTR", "level": "10", "constant": 10.0}, {"song_id": "sheriruthrmx", "title": "Sheriruth (Laur Remix)", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "signal", "title": "Signal", "difficulty": "ETR", "level": "10+", "constant": 10.7}, {"song_id": "singularity", "title": "Singularity", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "singularity", "title": "Singularity VVVIP", "difficulty": "BYD", "level": "10", "constant": 10.4}, {"song_id": "smallcloud", "title": "Small Cloud Sugar Candy", "difficulty": "BYD", "level": "10", "constant": 10.3}, {"song_id": "spiritdauntless", "title": "Spirit of the Dauntless", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "stasis", "title": "Stasis", "difficulty": "FTR", "level": "10+", "constant": 10.8}, {"song_id": "straightintolights", "title": "Straight into the lights", "difficulty": "ETR", "level": "10", "constant": 10.5}, {"song_id": "superambulance", "title": "SUPER AMBULANCE", "difficulty": "FTR", "level": "10", "constant": 10.3}, {"song_id": "synthesis", "title": "Synthesis.", "difficulty": "ETR", "level": "10", "constant": 10.5}, {"song_id": "tempestissimo", "title": "Tempestissimo", "difficulty": "BYD", "level": "11", "constant": 11.7}, {"song_id": "tempestissimo", "title": "Tempestissimo", "difficulty": "FTR", "level": "10+", "constant": 10.7}, {"song_id": "temptation", "title": "TEmPTaTiON", "difficulty": "FTR", "level": "10+", "constant": 10.9}, {"song_id": "teravolt", "title": "TeraVolt", "difficulty": "FTR", "level": "10+", "constant": 10.8}, {"song_id": "testify", "title": "Testify", "difficulty": "BYD", "level": "12", "constant": 12.0}, {"song_id": "testify", "title": "Testify", "difficulty": "FTR", "level": "10+", "constant": 10.9}, {"song_id": "thirdsun", "title": "Third Sun", "difficulty": "ETR", "level": "10", "constant": 10.0}, {"song_id": "tiferet", "title": "Tiferet", "difficulty": "FTR", "level": "10", "constant": 10.3}, {"song_id": "tothemilkyway", "title": "To the Milky Way", "difficulty": "FTR", "level": "10", "constant": 10.4}, {"song_id": "trpno", "title": "TRPNO", "difficulty": "FTR", "level": "10", "constant": 10.0}, {"song_id": "trrricksters", "title": "Trrricksters!!", "difficulty": "FTR", "level": "10", "constant": 10.1}, {"song_id": "ultradiaxon", "title": "ultradiaxon-N3", "difficulty": "FTR", "level": "10", "constant": 10.3}, {"song_id": "un", "title": "un", "difficulty": "ETR", "level": "10+", "constant": 10.9}, {"song_id": "undyingmacula", "title": "Undying Macula", "difficulty": "ETR", "level": "11", "constant": 11.0}, {"song_id": "undyingmacula", "title": "Undying Macula", "difficulty": "FTR", "level": "10", "constant": 10.1}, {"song_id": "unknownlevels", "title": "UNKNOWN LEVELS", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "valhallazero", "title": "Valhalla:0", "difficulty": "FTR", "level": "10", "constant": 10.2}, {"song_id": "viciousheroism", "title": "Vicious [ANTi] Heroism", "difficulty": "BYD", "level": "11", "constant": 11.2}, {"song_id": "viciousheroism", "title": "Vicious Heroism", "difficulty": "FTR", "level": "10", "constant": 10.0}, {"song_id": "virtus", "title": "ViRTUS", "difficulty": "ETR", "level": "10+", "constant": 10.9}, {"song_id": "viyellastears", "title": "Viyella's Tears", "difficulty": "FTR", "level": "10", "constant": 10.3}, {"song_id": "vulcanus", "title": "Vulc\u0101nus", "difficulty": "FTR", "level": "10+", "constant": 10.9}, {"song_id": "wereallgonnadie", "title": "We're All Gonna Die", "difficulty": "ETR", "level": "10+", "constant": 10.9}, {"song_id": "wereallgonnadie", "title": "We're All Gonna Die", "difficulty": "FTR", "level": "10", "constant": 10.1}, {"song_id": "welcomequeen", "title": "Welcome, Queen of Fiction.", "difficulty": "ETR", "level": "10+", "constant": 10.9}, {"song_id": "welcomequeen", "title": "Welcome, Queen of Fiction.", "difficulty": "FTR", "level": "10", "constant": 10.1}, {"song_id": "wishuponasnow", "title": "Wish Upon a Snow", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "worldvanquisher", "title": "World Vanquisher", "difficulty": "FTR", "level": "10+", "constant": 10.7}, {"song_id": "xanatos", "title": "Xanatos", "difficulty": "FTR", "level": "10", "constant": 10.0}, {"song_id": "xterfusion", "title": "Xterfusion", "difficulty": "ETR", "level": "10+", "constant": 10.7}, {"song_id": "xtreme", "title": "XTREME", "difficulty": "FTR", "level": "10", "constant": 10.5}, {"song_id": "xxium", "title": "Xxium and Purple haze", "difficulty": "ETR", "level": "10", "constant": 10.5}, {"song_id": "zephyrlast", "title": "zephyrlasting", "difficulty": "ETR", "level": "10", "constant": 10.3}, {"song_id": "aterlbus", "title": "\u03b1terl\u03b2us", "difficulty": "FTR", "level": "10", "constant": 10.2}, {"song_id": "guardina", "title": "\u03b3uar\u03b4ina", "difficulty": "FTR", "level": "10", "constant": 10.4}, {"song_id": "azalea", "title": "\u039bZ\u039bLE\u039b", "difficulty": "ETR", "level": "10", "constant": 10.0}, {"song_id": "omegafour", "title": "\u03c94", "difficulty": "FTR", "level": "10+", "constant": 10.8}, {"song_id": "sacrosanct", "title": "\u22a5\u22ac", "difficulty": "FTR", "level": "10+", "constant": 10.7}, {"song_id": "asgore", "title": "\u30a2\u30ba\u30b4\u30a2", "difficulty": "ETR", "level": "10", "constant": 10.2}, {"song_id": "toaliceliddell", "title": "\u30a2\u30ea\u30b9\u30fb\u30ea\u30c7\u30eb\u306b\u6367\u3050", "difficulty": "FTR", "level": "10", "constant": 10.3}, {"song_id": "override", "title": "\u30aa\u30fc\u30d0\u30fc\u30e9\u30a4\u30c9", "difficulty": "ETR", "level": "10", "constant": 10.2}, {"song_id": "sucromania", "title": "\u30b6\u30e9\u30e1\u30ce\u30ad\u30ef\u30df", "difficulty": "ETR", "level": "10", "constant": 10.1}, {"song_id": "telepathy", "title": "\u30c6\u30ec\u30d1\u30b7", "difficulty": "ETR", "level": "10", "constant": 10.4}, {"song_id": "placebobattler", "title": "\u30d7\u30e9\u30b7\u30a4\u30dc\u2665\u30d0\u30c8\u30e9\u30fc", "difficulty": "FTR", "level": "10", "constant": 10.4}, {"song_id": "meltyrhapsody", "title": "\u30e1\u30eb\u30c6\u30a3\u30fc\u30e9\u30d7\u30bd\u30c7\u30a3\u30fc", "difficulty": "ETR", "level": "10", "constant": 10.4}, {"song_id": "divinelight", "title": "\u5149\u901f\u795e\u6388\u8aac - Divine Light of Myriad -", "difficulty": "FTR", "level": "10+", "constant": 10.8}, {"song_id": "extradimensional", "title": "\u591a\u6b21\u5143\u5b87\u5b99\u878d\u5408\u8ad6", "difficulty": "ETR", "level": "11", "constant": 11.3}, {"song_id": "extradimensional", "title": "\u591a\u6b21\u5143\u5b87\u5b99\u878d\u5408\u8ad6", "difficulty": "FTR", "level": "10", "constant": 10.6}, {"song_id": "trappola", "title": "\u5996\u8276\u9b54\u5973 -trappola bewitching-", "difficulty": "BYD", "level": "10", "constant": 10.6}, {"song_id": "gensounosatellite", "title": "\u5e7b\u60f3\u306e\u30b5\u30c6\u30e9\u30a4\u30c8", "difficulty": "ETR", "level": "10", "constant": 10.1}, {"song_id": "ikazuchi", "title": "\u6012\u69cc", "difficulty": "FTR", "level": "10", "constant": 10.3}, {"song_id": "overdrive", "title": "\u60a3\u90e8\u3067\u6b62\u307e\u3063\u3066\u3059\u3050\u6eb6\u3051\u308b\u3000\u301c \u72c2\u6c17\u306e\u512a\u66c7\u83ef\u9662", "difficulty": "FTR", "level": "10", "constant": 10.1}, {"song_id": "aishite", "title": "\u611b\u3057\u3066\u611b\u3057\u3066\u611b\u3057\u3066", "difficulty": "ETR", "level": "10", "constant": 10.5}, {"song_id": "saikyostronger", "title": "\u6700\u5f37STRONGER", "difficulty": "FTR", "level": "11", "constant": 11.0}, {"song_id": "yourbestnightmare", "title": "\u6700\u9ad8\u306e\u60aa\u5922", "difficulty": "BYD", "level": "10", "constant": 10.2}, {"song_id": "gou", "title": "\u696d -\u5584\u306a\u308b\u795e\u3068\u3053\u306e\u4e16\u306e\u60aa\u306b\u3064\u3044\u3066-", "difficulty": "FTR", "level": "10+", "constant": 10.9}, {"song_id": "rekkaresonance", "title": "\u70c8\u83efRESONANCE", "difficulty": "FTR", "level": "10+", "constant": 10.7}, {"song_id": "kyorenromance", "title": "\u72c2\u604bROMANCE", "difficulty": "FTR", "level": "10+", "constant": 10.7}, {"song_id": "kamippoi", "title": "\u795e\u3063\u307d\u3044\u306a", "difficulty": "ETR", "level": "10", "constant": 10.0}, {"song_id": "take", "title": "\u7af9", "difficulty": "FTR", "level": "10", "constant": 10.0}, {"song_id": "hiirogekka", "title": "\u7dcb\u8272\u6708\u4e0b\u3001\u72c2\u54b2\u30ce\u7d76 (nayuta 2017 ver.)", "difficulty": "FTR", "level": "10", "constant": 10.3}, {"song_id": "subsphere", "title": "\u7fbd\u5316\u3059\u308b\u4e9c\u7403\u4f53", "difficulty": "ETR", "level": "10", "constant": 10.6}, {"song_id": "spidersthread", "title": "\u8718\u86db\u306e\u7cf8", "difficulty": "FTR", "level": "10+", "constant": 10.8}, {"song_id": "worldender", "title": "\u9b54\u738b", "difficulty": "BYD", "level": "11", "constant": 11.1}, {"song_id": "worldender", "title": "\u9b54\u738b", "difficulty": "FTR", "level": "10", "constant": 10.0}, {"song_id": "tasogare", "title": "\u9ec4\u660f\u306e\u5354\u594f\u66f2", "difficulty": "ETR", "level": "10", "constant": 10.5}, {"song_id": "theraft", "title": "\uff3b\u7b4f\uff3d\u306f\u4e91\u3046\u3002\u5e7e\u3089\u6f02\u6d41\u3059\u308c\u3069\u4e0d\u6493\u306e\u5fc3\u3055\u3048\u6709\u308c\u3070\u8ec8\u3066\u884c\u5230\u308b\u3068\u3002", "difficulty": "ETR", "level": "10", "constant": 10.4}, {"song_id": "chateaudecartes", "title": "Ch\u00e2teau de cartes", "difficulty": "ETR", "level": "10", "constant": 10.3}, {"song_id": "etherdrive", "title": "Ether Drive", "difficulty": "ETR", "level": "10", "constant": 10.3}, {"song_id": "fatality", "title": "Fatality", "difficulty": "ETR", "level": "10", "constant": 10.4}, {"song_id": "parallax", "title": "Parallax", "difficulty": "ETR", "level": "11", "constant": 11.3}, {"song_id": "schrago", "title": "Schra Go (Uchina Time)", "difficulty": "ETR", "level": "10", "constant": 10.2}, {"song_id": "trickmaster", "title": "Tr!cK Ma?tEr", "difficulty": "ETR", "level": "10", "constant": 10.5}];
@@ -79,10 +127,11 @@
             reader.onload = function(event) {
                 try {
                     const scores = JSON.parse(event.target.result);
-                    processData(scores);
+                    processGlobalData(scores);
                     document.getElementById('upload-screen').style.display = 'none';
-                    document.getElementById('controls').style.display = 'flex';
-                } catch(e) {
+                    document.getElementById('tab-menu').style.display = 'flex';
+                    switchMode('rank');
+                } catch(err) {
                     alert("JSONファイルの読み込みに失敗しました。");
                 }
             };
@@ -91,7 +140,7 @@
 
         function levelSortKey(lvl) { return parseFloat(lvl.replace('+', '.5')) || 0; }
 
-        function processData(scoreList) {
+        function processGlobalData(scoreList) {
             const scoreDict = {};
             scoreList.forEach(s => {
                 let diffVal = s.difficulty;
@@ -101,13 +150,9 @@
                 scoreDict[s.song_id + "_" + diffStr] = s;
             });
 
-            const grouped11 = {}; const grouped10p = {}; const grouped10 = {};
-            const summaryData = {};
-
             MASTER_DATA.forEach(song => {
                 const key = song.song_id + "_" + song.difficulty;
                 const rec = scoreDict[key];
-                
                 let score = 0, clearType = -1, perfect = 0, near = 0, miss = 0;
                 if (rec) {
                     score = rec.score || 0;
@@ -126,7 +171,6 @@
                     else if (score >= 8900000) grade = "B";
                     else if (score >= 8600000) grade = "C";
                     else grade = "D";
-                    if (clearType === 0) grade = "FAIL";
                     
                     if (clearType === 3) {
                         const totalNotes = perfect + near + miss;
@@ -136,96 +180,47 @@
                 }
                 song.grade = grade;
                 song.scoreVal = score;
-
-                const lvl = song.level;
-                if (!summaryData[lvl]) summaryData[lvl] = { "MAX":0, "PM":0, "EX+":0, "EX":0, "AA":0, "A":0, "B-D":0, "NP":0, "Total":0 };
-                summaryData[lvl]["Total"]++;
-                if (summaryData[lvl][grade] !== undefined) summaryData[lvl][grade]++;
-                else if (["B","C","D","FAIL"].includes(grade)) summaryData[lvl]["B-D"]++;
-                else if (grade === "NO PLAY") summaryData[lvl]["NP"]++;
-
-                const c = song.constant;
-                if (["11", "11+", "12"].includes(lvl)) { if (!grouped11[c]) grouped11[c]=[]; grouped11[c].push(song); }
-                else if (lvl === "10+") { if (!grouped10p[c]) grouped10p[c]=[]; grouped10p[c].push(song); }
-                else { if (!grouped10[c]) grouped10[c]=[]; grouped10[c].push(song); }
             });
-
-            const sortedLvls = Object.keys(summaryData).sort((a,b) => levelSortKey(a) - levelSortKey(b));
-            let summaryHtml = `<table class="summary-table"><tr><th>Lv</th><th style="color:#ffdf00;">MAX</th><th style="color:#ffd700;">PM</th><th style="color:#00ffff;">EX+</th><th style="color:#32cd32;">EX</th><th style="color:#ff4c4c;">AA</th><th style="color:#ff4c4c;">A</th><th style="color:#ff4c4c;">B-D</th><th style="color:#777777;">NP</th><th>Total</th><th>EX+↑</th></tr>`;
-            const fmt = (v) => v > 0 ? v : '<span style="color:#444;">-</span>';
-            sortedLvls.forEach(lvl => {
-                const row = summaryData[lvl];
-                const total = row.Total;
-                const exPlus = row.MAX + row.PM + row["EX+"];
-                const rate = total > 0 ? (exPlus / total * 100).toFixed(1) : 0;
-                summaryHtml += `<tr><td class="lvl-col">${lvl}</td><td style="color:#ffdf00; text-shadow:0 0 5px #ffdf00;">${fmt(row.MAX)}</td><td style="color:#ffd700;">${fmt(row.PM)}</td><td style="color:#00ffff;">${fmt(row['EX+'])}</td><td style="color:#32cd32;">${fmt(row.EX)}</td><td style="color:#ff4c4c;">${fmt(row.AA)}</td><td style="color:#ff4c4c;">${fmt(row.A)}</td><td style="color:#ff4c4c;">${fmt(row['B-D'])}</td><td style="color:#777777;">${fmt(row.NP)}</td><td>${total}</td><td class="rate">${rate}%</td></tr>`;
-            });
-            summaryHtml += `</table>`;
-
-            const appContent = document.getElementById('app-content');
-            let finalHtml = "";
-
-            const sections = [
-                { title: "Level 11〜12", id: "area-11", data: grouped11 },
-                { title: "Level 10+", id: "area-10p", data: grouped10p },
-                { title: "Level 10", id: "area-10", data: grouped10 }
-            ];
-
-            sections.forEach(sec => {
-                if (Object.keys(sec.data).length === 0) return;
-                finalHtml += `<div id="${sec.id}" class="capture-area">
-                                <div class="header-container">
-                                    <h1>Arcaea Achievement <span class="title-sub">[${sec.title}]</span></h1>
-                                    ${summaryHtml}
-                                </div>`;
-                
-                const sortedConsts = Object.keys(sec.data).map(Number).sort((a,b) => b - a);
-                sortedConsts.forEach(c => {
-                    finalHtml += `<div class="constant-section"><div class="constant-header">CC: ${c.toFixed(1)}</div><div class="tile-container">`;
-                    const songs = sec.data[c].sort((a,b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
-                    songs.forEach(song => {
-                        let gColor = gradeColors[song.grade];
-                        if (!gColor && ["AA","A","B","C","D","FAIL"].includes(song.grade)) gColor = gradeColors["AA"];
-                        else if (!gColor) gColor = gradeColors["NO PLAY"];
-                        
-                        const dColor = diffColors[song.difficulty] || "#444";
-                        const scoreStr = song.scoreVal > 0 ? song.scoreVal.toLocaleString() : "---";
-                        const noplayCls = song.scoreVal === 0 ? " noplay" : "";
-                        let imgSrc = IMAGES[song.song_id + "_" + song.difficulty] || IMAGES['default'];
-
-                        finalHtml += `
-                        <div class="tile${noplayCls}" style="border-color: ${dColor};">
-                            <img src="${imgSrc}" class="jacket" alt="${song.title}">
-                            <div class="grade" style="background: ${gColor.bg}; color: ${gColor.color}; text-shadow: ${gColor.shadow};">${song.grade}</div>
-                            <div class="overlay"><div class="o-title">${song.title}</div><div class="o-score">${scoreStr}</div></div>
-                        </div>`;
-                    });
-                    finalHtml += `</div></div>`;
-                });
-                finalHtml += `</div>`;
-            });
-            appContent.innerHTML = finalHtml;
+            
+            drawRankBoard();
+            drawScoreBoard();
         }
 
-        // ▼ 今回のアップデートの心臓部（iOS/Safari対策）▼
+        function switchMode(mode) {
+            document.getElementById('view-rank').style.display = 'none';
+            document.getElementById('view-score').style.display = 'none';
+            document.getElementById('tab-rank').classList.remove('active');
+            document.getElementById('tab-score').classList.remove('active');
+            
+            document.querySelectorAll('.btn-export').forEach(b => b.style.display = 'none');
+
+            if (mode === 'rank') {
+                document.getElementById('view-rank').style.display = 'block';
+                document.getElementById('tab-rank').classList.add('active');
+                document.getElementById('btn-rank-11').style.display = 'block';
+                document.getElementById('btn-rank-10p').style.display = 'block';
+                document.getElementById('btn-rank-10').style.display = 'block';
+            } else if (mode === 'score') {
+                document.getElementById('view-score').style.display = 'block';
+                document.getElementById('tab-score').classList.add('active');
+                document.getElementById('btn-score-11').style.display = 'block';
+                document.getElementById('btn-score-10p').style.display = 'block';
+                document.getElementById('btn-score-10').style.display = 'block';
+            }
+        }
+
         function exportImage(areaId, filename, btnId) {
             const btn = document.getElementById(btnId);
             const originalText = btn.textContent;
             btn.textContent = "⏳ 生成中...";
             btn.style.backgroundColor = "#555";
-            
             const element = document.getElementById(areaId);
-            
-            // iPhone/iPadかを判定
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
             
             html2canvas(element, { backgroundColor: '#121212', scale: 2.5, useCORS: true }).then(canvas => {
                 if (isIOS) {
-                    // iPhone/Safariの場合はポップアップ表示
-                    const imgData = canvas.toDataURL('image/png');
-                    showModal(imgData);
+                    showModal(canvas.toDataURL('image/png'));
                 } else {
-                    // PC/Android/Chromeの場合はBlobに変換してより安全にダウンロード
                     canvas.toBlob(function(blob) {
                         const url = window.URL.createObjectURL(blob);
                         const link = document.createElement('a');
@@ -244,7 +239,6 @@
             });
         }
 
-        // 長押し保存用ポップアップ（モーダル）を生成する機能
         function showModal(imgSrc) {
             const modal = document.createElement('div');
             modal.style.position = 'fixed';
@@ -252,44 +246,182 @@
             modal.style.width = '100vw'; modal.style.height = '100vh';
             modal.style.backgroundColor = 'rgba(0,0,0,0.9)';
             modal.style.zIndex = '100000';
-            modal.style.display = 'flex';
-            modal.style.flexDirection = 'column';
-            modal.style.alignItems = 'center';
-            modal.style.justifyContent = 'center';
+            modal.style.display = 'flex'; modal.style.flexDirection = 'column'; modal.style.alignItems = 'center'; modal.style.justifyContent = 'center';
             
             const msg = document.createElement('p');
-            msg.innerText = "⬇️ 画像を長押しして「写真に追加」で保存してください ⬇️";
-            msg.style.color = "#00ffff";
-            msg.style.fontWeight = "bold";
-            msg.style.marginBottom = "15px";
-            msg.style.textAlign = "center";
+            msg.innerText = "⬇️ 画像を長押しして「写真に追加」で保存 ⬇️";
+            msg.style.color = "#00ffff"; msg.style.fontWeight = "bold"; msg.style.marginBottom = "15px";
             
             const img = document.createElement('img');
             img.src = imgSrc;
-            img.style.maxWidth = '95%';
-            img.style.maxHeight = '75vh';
-            img.style.border = '2px solid #555';
-            img.style.borderRadius = '8px';
+            img.style.maxWidth = '95%'; img.style.maxHeight = '75vh'; img.style.border = '2px solid #555'; img.style.borderRadius = '8px';
             
             const closeBtn = document.createElement('button');
             closeBtn.innerText = "❌ 閉じる";
-            closeBtn.style.marginTop = "20px";
-            closeBtn.style.padding = "10px 20px";
-            closeBtn.style.fontSize = "1.1em";
-            closeBtn.style.fontWeight = "bold";
-            closeBtn.style.cursor = "pointer";
-            closeBtn.style.background = "#ff4c4c";
-            closeBtn.style.color = "#fff";
-            closeBtn.style.border = "none";
-            closeBtn.style.borderRadius = "4px";
+            closeBtn.style.marginTop = "20px"; closeBtn.style.padding = "10px 20px"; closeBtn.style.fontSize = "1.1em"; closeBtn.style.fontWeight = "bold"; closeBtn.style.cursor = "pointer";
+            closeBtn.style.background = "#ff4c4c"; closeBtn.style.color = "#fff"; closeBtn.style.border = "none"; closeBtn.style.borderRadius = "4px";
+            closeBtn.onclick = () => document.body.removeChild(modal);
             
-            closeBtn.onclick = function() { document.body.removeChild(modal); };
-            
-            modal.appendChild(msg);
-            modal.appendChild(img);
-            modal.appendChild(closeBtn);
+            modal.appendChild(msg); modal.appendChild(img); modal.appendChild(closeBtn);
             document.body.appendChild(modal);
         }
+
+        
+    function drawRankBoard() {
+        const grouped11 = {}; const grouped10p = {}; const grouped10 = {};
+        const summaryData = {};
+
+        MASTER_DATA.forEach(song => {
+            const lvl = song.level;
+            if (!summaryData[lvl]) summaryData[lvl] = { "MAX":0, "PM":0, "EX+":0, "EX":0, "AA":0, "A":0, "B-D":0, "NP":0, "Total":0 };
+            summaryData[lvl].Total++;
+            let g = song.grade;
+            if (summaryData[lvl][g] !== undefined) summaryData[lvl][g]++;
+            else if (["B","C","D"].includes(g)) summaryData[lvl]["B-D"]++;
+            else if (g === "NO PLAY") summaryData[lvl]["NP"]++;
+
+            const c = song.constant;
+            if (["11", "11+", "12"].includes(lvl)) { if (!grouped11[c]) grouped11[c]=[]; grouped11[c].push(song); }
+            else if (lvl === "10+") { if (!grouped10p[c]) grouped10p[c]=[]; grouped10p[c].push(song); }
+            else { if (!grouped10[c]) grouped10[c]=[]; grouped10[c].push(song); }
+        });
+
+        const sortedLvls = Object.keys(summaryData).sort((a,b) => levelSortKey(a) - levelSortKey(b));
+        let summaryHtml = `<table class="summary-table"><tr><th>Lv</th><th style="color:#ffdf00;">MAX</th><th style="color:#ffd700;">PM</th><th style="color:#00ffff;">EX+</th><th style="color:#32cd32;">EX</th><th style="color:#ff4c4c;">AA</th><th style="color:#ff4c4c;">A</th><th style="color:#ff4c4c;">B-D</th><th style="color:#777777;">NP</th><th>Total</th><th>EX+↑</th></tr>`;
+        const fmt = (v) => v > 0 ? v : '<span style="color:#444;">-</span>';
+        sortedLvls.forEach(lvl => {
+            const row = summaryData[lvl];
+            const total = row.Total;
+            const exPlus = row.MAX + row.PM + row["EX+"];
+            const rate = total > 0 ? (exPlus / total * 100).toFixed(1) : 0;
+            summaryHtml += `<tr><td class="lvl-col">${lvl}</td><td style="color:#ffdf00; text-shadow:0 0 5px #ffdf00;">${fmt(row.MAX)}</td><td style="color:#ffd700;">${fmt(row.PM)}</td><td style="color:#00ffff;">${fmt(row['EX+'])}</td><td style="color:#32cd32;">${fmt(row.EX)}</td><td style="color:#ff4c4c;">${fmt(row.AA)}</td><td style="color:#ff4c4c;">${fmt(row.A)}</td><td style="color:#ff4c4c;">${fmt(row['B-D'])}</td><td style="color:#777777;">${fmt(row.NP)}</td><td>${total}</td><td class="rate">${rate}%</td></tr>`;
+        });
+        summaryHtml += `</table>`;
+
+        let finalHtml = "";
+        const sections = [
+            { title: "Level 11〜12", id: "rank-area-11", data: grouped11 },
+            { title: "Level 10+", id: "rank-area-10p", data: grouped10p },
+            { title: "Level 10", id: "rank-area-10", data: grouped10 }
+        ];
+
+        sections.forEach(sec => {
+            if (Object.keys(sec.data).length === 0) return;
+            finalHtml += `<div id="${sec.id}" class="capture-area">
+                            <div class="header-container">
+                                <h1>Arcaea Achievement <span class="title-sub">[${sec.title}]</span></h1>
+                                ${summaryHtml}
+                            </div>`;
+            
+            const sortedConsts = Object.keys(sec.data).map(Number).sort((a,b) => b - a);
+            sortedConsts.forEach(c => {
+                finalHtml += `<div class="constant-section"><div class="constant-header">CC: ${c.toFixed(1)}</div><div class="tile-container">`;
+                const songs = sec.data[c].sort((a,b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
+                songs.forEach(song => {
+                    let gColor = gradeColors[song.grade];
+                    if (!gColor && ["AA","A","B","C","D"].includes(song.grade)) gColor = gradeColors["AA"];
+                    else if (!gColor) gColor = gradeColors["NO PLAY"];
+                    
+                    const dColor = diffColors[song.difficulty] || "#444";
+                    const scoreStr = song.scoreVal > 0 ? song.scoreVal.toLocaleString() : "---";
+                    const noplayCls = song.scoreVal === 0 ? " noplay" : "";
+                    let imgSrc = IMAGES[song.song_id + "_" + song.difficulty] || IMAGES['default'];
+
+                    finalHtml += `
+                    <div class="tile${noplayCls}" style="border-color: ${dColor};">
+                        <img src="${imgSrc}" class="jacket" alt="${song.title}">
+                        <div class="grade" style="background: ${gColor.bg}; color: ${gColor.color}; text-shadow: ${gColor.shadow};">${song.grade}</div>
+                        <div class="overlay"><div class="o-title">${song.title}</div><div class="o-score">${scoreStr}</div></div>
+                    </div>`;
+                });
+                finalHtml += `</div></div>`;
+            });
+            finalHtml += `</div>`;
+        });
+        document.getElementById('rank-content').innerHTML = finalHtml;
+    }
+    
+        
+    function drawScoreBoard() {
+        const grouped11 = {}; const grouped10p = {}; const grouped10 = {};
+        const summaryData = {};
+
+        MASTER_DATA.forEach(song => {
+            const lvl = song.level;
+            if (!summaryData[lvl]) summaryData[lvl] = { "MAX":0, "PM":0, "EX+":0, "EX":0, "AA":0, "A":0, "B-D":0, "NP":0, "Total":0 };
+            summaryData[lvl].Total++;
+            let g = song.grade;
+            if (summaryData[lvl][g] !== undefined) summaryData[lvl][g]++;
+            else if (["B","C","D"].includes(g)) summaryData[lvl]["B-D"]++;
+            else if (g === "NO PLAY") summaryData[lvl]["NP"]++;
+
+            const c = song.constant;
+            if (["11", "11+", "12"].includes(lvl)) { if (!grouped11[c]) grouped11[c]=[]; grouped11[c].push(song); }
+            else if (lvl === "10+") { if (!grouped10p[c]) grouped10p[c]=[]; grouped10p[c].push(song); }
+            else { if (!grouped10[c]) grouped10[c]=[]; grouped10[c].push(song); }
+        });
+
+        const sortedLvls = Object.keys(summaryData).sort((a,b) => levelSortKey(a) - levelSortKey(b));
+        let summaryHtml = `<table class="summary-table"><tr><th>Lv</th><th style="color:#ffdf00;">MAX</th><th style="color:#ffd700;">PM</th><th style="color:#00ffff;">EX+</th><th style="color:#32cd32;">EX</th><th style="color:#ff4c4c;">AA</th><th style="color:#ff4c4c;">A</th><th style="color:#ff4c4c;">B-D</th><th style="color:#777777;">NP</th><th>Total</th><th>EX+↑</th></tr>`;
+        const fmt = (v) => v > 0 ? v : '<span style="color:#444;">-</span>';
+        sortedLvls.forEach(lvl => {
+            const row = summaryData[lvl];
+            const total = row.Total;
+            const exPlus = row.MAX + row.PM + row["EX+"];
+            const rate = total > 0 ? (exPlus / total * 100).toFixed(1) : 0;
+            summaryHtml += `<tr><td class="lvl-col">${lvl}</td><td style="color:#ffdf00; text-shadow:0 0 5px #ffdf00;">${fmt(row.MAX)}</td><td style="color:#ffd700;">${fmt(row.PM)}</td><td style="color:#00ffff;">${fmt(row['EX+'])}</td><td style="color:#32cd32;">${fmt(row.EX)}</td><td style="color:#ff4c4c;">${fmt(row.AA)}</td><td style="color:#ff4c4c;">${fmt(row.A)}</td><td style="color:#ff4c4c;">${fmt(row['B-D'])}</td><td style="color:#777777;">${fmt(row.NP)}</td><td>${total}</td><td class="rate">${rate}%</td></tr>`;
+        });
+        summaryHtml += `</table>`;
+
+        let finalHtml = "";
+        const sections = [
+            { title: "Level 11〜12 (Score)", id: "score-area-11", data: grouped11 },
+            { title: "Level 10+ (Score)", id: "score-area-10p", data: grouped10p },
+            { title: "Level 10 (Score)", id: "score-area-10", data: grouped10 }
+        ];
+
+        sections.forEach(sec => {
+            if (Object.keys(sec.data).length === 0) return;
+            finalHtml += `<div id="${sec.id}" class="capture-area">
+                            <div class="header-container">
+                                <h1>Arcaea Score Board <span class="title-sub">[${sec.title}]</span></h1>
+                                ${summaryHtml}
+                            </div>`;
+            
+            const sortedConsts = Object.keys(sec.data).map(Number).sort((a,b) => b - a);
+            sortedConsts.forEach(c => {
+                finalHtml += `<div class="constant-section"><div class="constant-header">CC: ${c.toFixed(1)}</div><div class="tile-container">`;
+                
+                // スコア降順ソート
+                const songs = sec.data[c].sort((a,b) => {
+                    if (b.scoreVal !== a.scoreVal) return b.scoreVal - a.scoreVal;
+                    return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+                });
+                
+                songs.forEach(song => {
+                    let gColor = gradeColors[song.grade];
+                    if (!gColor && ["AA","A","B","C","D"].includes(song.grade)) gColor = gradeColors["AA"];
+                    else if (!gColor) gColor = gradeColors["NO PLAY"];
+                    
+                    const dColor = diffColors[song.difficulty] || "#444";
+                    const scoreStr = song.scoreVal > 0 ? song.scoreVal.toLocaleString() : "---";
+                    const noplayCls = song.scoreVal === 0 ? " noplay" : "";
+                    let imgSrc = IMAGES[song.song_id + "_" + song.difficulty] || IMAGES['default'];
+
+                    finalHtml += `
+                    <div class="tile${noplayCls}" style="border-color: ${dColor};">
+                        <img src="${imgSrc}" class="jacket" alt="${song.title}">
+                        <div class="score-bar" style="background: ${gColor.bg}; color: ${gColor.color}; text-shadow: ${gColor.shadow};">${scoreStr}</div>
+                        <div class="overlay"><div class="o-title">${song.title}</div><div class="o-rank" style="color:${gColor.color};">${song.grade}</div></div>
+                    </div>`;
+                });
+                finalHtml += `</div></div>`;
+            });
+            finalHtml += `</div>`;
+        });
+        document.getElementById('score-content').innerHTML = finalHtml;
+    }
+    
     </script>
 </body>
 </html>
