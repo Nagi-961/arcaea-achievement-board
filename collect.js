@@ -1,11 +1,6 @@
 javascript:(async function(){const div=document.createElement('div');div.style.cssText='position:fixed;top:0;left:0;width:100%;background:rgba(0,0,0,0.85);color:white;z-index:99999;padding:20px;font-size:16px;text-align:center;box-sizing:border-box;font-weight:bold;';div.innerText='⏳ Arcaeaのデータを取得中...\nそのまま画面を閉じずにお待ちください';document.body.appendChild(div);let allData=[];const diffs=[2,3,4];let profileData={name:'Unknown',user_code:'',rating:0,last_updated:new Date().toLocaleString('ja-JP')};try{div.innerText='⏳ プロフィール情報を取得中...';try{const meRes=await fetch('https://webapi.lowiro.com/webapi/user/me',{credentials:'include'});if(meRes.ok){const meJson=await meRes.json();const userVal=meJson.value||{};profileData.name=userVal.name||'Unknown';profileData.user_code=userVal.user_code||'';profileData.rating=userVal.rating||0;}}catch(e){console.warn(e);}for(let diff of diffs){let page=1;let hasMore=true;while(hasMore){div.innerText=`⏳ 取得中...\n(難易度: ${diff}, ページ: ${page})`;await new Promise(r=>setTimeout(r,1000));const res=await fetch(`https://webapi.lowiro.com/webapi/score/song/me/all?difficulty=${diff}&page=${page}&sort=date&term=`,{credentials:'include'});if(!res.ok)break;const json=await res.json();let records=[];if(json&&json.value&&Array.isArray(json.value.scores))records=json.value.scores;else if(Array.isArray(json))records=json;else if(json.value&&Array.isArray(json.value))records=json.value;else if(json.data&&Array.isArray(json.data))records=json.data;if(records.length===0)hasMore=false;else{allData.push(...records);page++;}}}if(allData.length===0){div.innerText='⚠️ データが取得できませんでした。\nログイン状態を確認してください。';setTimeout(()=>div.remove(),4000);return;}const text=JSON.stringify({profile:profileData,scores:allData},null,2);const rStr=profileData.rating>0?(profileData.rating/1000).toFixed(3):'---';div.innerHTML=`🎉 取得完了！(スコア: ${allData.length}件)<br>👤 ${profileData.name} (Rate: ${rStr})<br>🕒 最終更新: ${profileData.last_updated}<br><br>下のボタンで保存してください<br>`;const btn=(label,fn)=>{const b=document.createElement('button');b.textContent=label;b.style.cssText='margin:6px;padding:10px 16px;font-size:16px;';b.onclick=fn;div.appendChild(b);};
 btn('📥 保存', async () => {
-  try {
-    const file = new File([text], 'all.json', { type: 'text/plain' });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file] });
-      return;
-    }
+  const download = () => {
     const blob = new Blob([text], { type: 'application/octet-stream' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -13,8 +8,20 @@ btn('📥 保存', async () => {
     document.body.appendChild(a);
     a.click();
     a.remove();
+  };
+  const file = new File([text], 'all.json', { type: 'text/plain' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file] });
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+    }
+  }
+  try {
+    download();
   } catch (e) {
-    if (e.name !== 'AbortError') alert('保存失敗: ' + e.name + ' ' + e.message);
+    alert('保存失敗: ' + e.name + ' ' + e.message);
   }
 });
 btn('📋 コピー',async()=>{try{await navigator.clipboard.writeText(text);alert('コピーしました');}catch(e){alert('コピー失敗: '+e.message);}});btn('✖ 閉じる',()=>div.remove());}catch(e){div.innerText='❌ エラーが発生しました: '+e.message;setTimeout(()=>div.remove(),5000);}})();
