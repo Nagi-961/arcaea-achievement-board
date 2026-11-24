@@ -76,6 +76,18 @@ input[type="file"] { display: none; }
 .o-score { font-size: 0.8em; font-family: monospace; color: #00e676; }
 .o-rank { font-size: 0.9em; font-weight: bold; margin-top: 2px; }
 
+/* ジャケットオフ: ジャケットを隠して黒地に曲名を常に出す。下のランク/スコアのバーは隠さない */
+.covers-off .tile { background: #000; }
+.covers-off .jacket { visibility: hidden; }
+.covers-off .overlay { opacity: 1; background: #000; z-index: 1; padding-bottom: 28px; transition: none; }
+/* 文字サイズは board.js が曲名ごとに計算。最小サイズでも収まらない曲名は「…」で切る */
+.covers-off .o-title { font-size: var(--title-size, 0.75em); line-height: 1.15; max-height: 42px; word-break: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; overflow: hidden; flex-shrink: 0; }
+.covers-off .noplay .o-title { color: #777; }
+
+.btn-cover-toggle { position: sticky; left: 0; display: block; margin-bottom: 16px; background: #222; color: #fff; border: 1px solid #555; padding: 10px 20px; font-size: 1em; font-weight: bold; border-radius: 6px; cursor: pointer; }
+.btn-cover-toggle:hover { background: #333; }
+.covers-off .btn-cover-toggle { border-color: #1e90ff; }
+
 /* 各表の真上の保存ボタン。横スクロールしても画面の左端に残るようにする */
 .btn-export { position: sticky; left: 0; margin-bottom: 10px; background: #1e90ff; color: white; border: none; padding: 10px 20px; font-size: 1em; font-weight: bold; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
 .btn-export:hover { background: #0073e6; }
