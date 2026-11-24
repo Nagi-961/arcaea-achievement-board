@@ -12,9 +12,9 @@ const gradeColors = {
 
 // 画像1枚ごとの区切り。levels が null のものは残り全部(Level 10)
 const SECTIONS = [
-    { key: '11', label: 'Level 11〜12', saveLabel: '📷 11以上を保存', levels: ['11', '11+', '12'] },
-    { key: '10p', label: 'Level 10+', saveLabel: '📷 10+を保存', levels: ['10+'] },
-    { key: '10', label: 'Level 10', saveLabel: '📷 10を保存', levels: null },
+    { key: '11', label: 'Level 11〜12', levels: ['11', '11+', '12'] },
+    { key: '10p', label: 'Level 10+', levels: ['10+'] },
+    { key: '10', label: 'Level 10', levels: null },
 ];
 
 const COVER_DIR = 'covers';
@@ -35,10 +35,10 @@ export function compareTitle(a, b) {
     return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
 }
 
-function levelSortKey(lvl) { return parseFloat(lvl.replace('+', '.5')) || 0; }
+export function levelSortKey(lvl) { return parseFloat(lvl.replace('+', '.5')) || 0; }
 
 // 保存画像のヘッダーに載せるプロフィール（旧形式のデータでは表示しない）
-function profileHtml(profile) {
+export function profileHtml(profile) {
     if (!profile) return '';
     const rating = Number.isFinite(profile.rating) && profile.rating >= 0 ? (profile.rating / 1000).toFixed(3) : '--';
     return `<div class="profile-info">
@@ -92,7 +92,6 @@ function tileHtml(song, feature) {
 // feature: { id, heading, sectionSuffix, sortSongs, tileBar, overlayInfo }
 export function renderBoard(songs, profile, feature) {
     const summaryHtml = summaryTableHtml(songs);
-    let controlsHtml = '';
     let areasHtml = '';
 
     SECTIONS.forEach(sec => {
@@ -101,12 +100,14 @@ export function renderBoard(songs, profile, feature) {
         if (sectionSongs.length === 0) return;
 
         const areaId = `${feature.id}-area-${sec.key}`;
-        controlsHtml += `<button class="btn-export" data-area="${areaId}" data-filename="arcaea_${feature.id}_${sec.key}.png">${sec.saveLabel}</button>`;
 
         const grouped = {};
         sectionSongs.forEach(song => { (grouped[song.constant] ??= []).push(song); });
 
-        areasHtml += `<div id="${areaId}" class="capture-area">
+        // 保存ボタンは画像に写らないよう、保存範囲(capture-area)の外の真上に置く
+        areasHtml += `<div class="board-section">
+                        <button class="btn-export" data-area="${areaId}" data-filename="arcaea_${feature.id}_${sec.key}.png">📷 ${sec.label} を保存</button>
+                        <div id="${areaId}" class="capture-area">
                         <div class="header-container">
                             <div>
                                 <h1>${feature.heading} <span class="title-sub">[${sec.label}${feature.sectionSuffix}]</span></h1>
@@ -119,10 +120,10 @@ export function renderBoard(songs, profile, feature) {
             grouped[c].sort(feature.sortSongs).forEach(song => { areasHtml += tileHtml(song, feature); });
             areasHtml += `</div></div>`;
         });
-        areasHtml += `</div>`;
+        areasHtml += `</div></div>`;
     });
 
-    return `<div class="controls">${controlsHtml}</div>${areasHtml}`;
+    return areasHtml;
 }
 
 // error イベントはバブリングしないので、ビューに capture で登録して使う
