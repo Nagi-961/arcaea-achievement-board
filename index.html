@@ -10,21 +10,36 @@
 </head>
 <body>
 
-    <div id="upload-screen">
-        <h1>Arcaea Multi Dashboard</h1>
-        <p>Arcaea Onlineから取得した<br><b>all.json</b> を選択してください。</p>
-        <label class="file-upload-btn">
-            📂 all.json を選択
-            <input type="file" id="json-input" accept=".json" disabled>
-        </label>
-        <p id="master-status" class="master-status">⏳ 楽曲データを読み込み中...</p>
-        <details class="upload-howto">
-            <summary>📖 all.json の取り方</summary>
-            <div id="upload-howto"></div>
-        </details>
+    <!-- トップページ。ツールを選ぶと app-content の各ビューに切り替わる -->
+    <div id="home">
+        <header class="home-hero">
+            <h1>Arcaea Multi Dashboard</h1>
+            <p>ようこそ！ここは Arcaea のプレイデータを活用した、いろいろなツールを作っていく試作場です。<br>
+                Arcaea Online から取得したスコアを読み込んで、表や画像にして楽しめます。</p>
+        </header>
+
+        <section class="home-section">
+            <h2>🧰 ツール</h2>
+            <div id="tool-cards" class="tool-cards"></div>
+        </section>
+
+        <section id="data-panel" class="home-section data-panel">
+            <h2>📂 プレイデータ</h2>
+            <p id="home-data-status" class="home-data-status">all.json を読み込むと、各ツールが使えるようになります。</p>
+            <label class="file-upload-btn">
+                📂 all.json を選択
+                <input type="file" id="json-input" accept=".json" disabled>
+            </label>
+            <p id="master-status" class="master-status">⏳ 楽曲データを読み込み中...</p>
+            <details class="upload-howto">
+                <summary>📖 all.json の取り方</summary>
+                <div id="upload-howto"></div>
+            </details>
+        </section>
     </div>
 
     <div id="tab-menu">
+        <button id="btn-home" class="tab-btn" type="button">🏠 ホーム</button>
         <span id="tab-buttons" class="tab-buttons"></span>
         <label class="tab-btn">
             🔄 データ更新
@@ -36,6 +51,16 @@
 
     <!-- はみ出し防止スクロールラッパー。各機能のビューは main.js が作る -->
     <div id="app-content"></div>
+
+    <footer class="site-footer">
+        <p>当サイトは個人が作成した非公式のファンツールであり、lowiro および関係者様とは一切関係ありません。<br>
+            Arcaea、およびコラボレーション楽曲を含む楽曲・ジャケット画像等の著作権は、lowiro および各権利者様に帰属します。<br>
+            当サイトの利用により生じた損害等については責任を負いかねます。<br>
+            掲載内容に問題がある場合は、下記の X までご連絡ください。速やかに対応いたします。</p>
+        <!-- X のリンク先: 自分のアカウントの URL に書き換える -->
+        <a class="x-link" href="https://x.com/NoooooB008" target="_blank" rel="noopener">𝕏 作者の X</a>
+        <p class="copyright">© lowiro</p>
+    </footer>
 
 </body>
 </html>
