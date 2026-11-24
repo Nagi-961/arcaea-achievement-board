@@ -39,14 +39,21 @@
     </div>
 
     <div id="tab-menu">
-        <button id="btn-home" class="tab-btn" type="button">🏠 ホーム</button>
-        <span id="tab-buttons" class="tab-buttons"></span>
-        <label class="tab-btn">
-            🔄 データ更新
-            <input type="file" id="json-update-input" accept=".json">
-        </label>
-        <button id="btn-backup" class="tab-btn" type="button">💾 バックアップを保存</button>
-        <span id="data-status" class="data-status"></span>
+        <!-- スマホ幅でだけ表示する ☰ メニューのバー -->
+        <div class="menu-bar">
+            <button id="menu-toggle" class="menu-toggle" type="button" aria-expanded="false" aria-controls="menu-items" aria-label="メニュー">☰</button>
+            <span id="menu-current" class="menu-current"></span>
+        </div>
+        <div id="menu-items" class="menu-items">
+            <button id="btn-home" class="tab-btn" type="button">🏠 ホーム</button>
+            <span id="tab-buttons" class="tab-buttons"></span>
+            <label class="tab-btn">
+                🔄 データ更新
+                <input type="file" id="json-update-input" accept=".json">
+            </label>
+            <button id="btn-backup" class="tab-btn" type="button">💾 バックアップを保存</button>
+            <span id="data-status" class="data-status"></span>
+        </div>
     </div>
 
     <!-- はみ出し防止スクロールラッパー。各機能のビューは main.js が作る -->
