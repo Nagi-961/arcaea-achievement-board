@@ -1,7 +1,7 @@
 import { loadMaster } from './master.js';
 import { normalizeData, mergeData, saveData, loadSavedData } from './storage.js';
 import { exportImage, exportJson } from './export.js';
-import { renderBoard, handleCoverError } from './board.js';
+import { renderBoard, handleCoverError, isCoversOff, setCoversOff } from './board.js';
 import rank from './features/rank.js';
 import score from './features/score.js';
 import summary from './features/summary.js';
@@ -161,6 +161,7 @@ function handleScoreFile(e) {
 }
 
 function buildViews() {
+    setCoversOff(isCoversOff());
     const tabButtons = document.getElementById('tab-buttons');
     const appContent = document.getElementById('app-content');
     FEATURES.forEach(f => {
@@ -182,6 +183,7 @@ function buildViews() {
             view.addEventListener('click', e => {
                 const btn = e.target.closest('.btn-export');
                 if (btn) exportImage(btn.dataset.area, btn.dataset.filename, btn, playerProfile);
+                if (e.target.closest('.btn-cover-toggle')) setCoversOff(!isCoversOff());
             });
             view.addEventListener('error', handleCoverError, true);
         }
