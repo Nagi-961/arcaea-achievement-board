@@ -27,7 +27,9 @@ body { background: #0a0a0a; color: #fff; font-family: sans-serif; margin: 0; pad
 input[type="file"] { display: none; }
 
 #tab-menu { display: none; justify-content: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
-.tab-buttons { display: contents; }
+.menu-items, .tab-buttons { display: contents; }
+/* ハンバーガーメニューはスマホ幅でだけ使う */
+.menu-bar { display: none; }
 .tab-btn { background: #333; color: #fff; border: 2px solid #555; padding: 12px 30px; font-size: 1.1em; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.2s; }
 .tab-btn.active { background: #1e90ff; border-color: #1e90ff; }
 .data-status { align-self: center; color: #999; font-size: 0.85em; }
@@ -35,12 +37,13 @@ input[type="file"] { display: none; }
 /* 横スクロールを許可するラッパー */
 #app-content { display: none; width: 100%; overflow-x: auto; padding-bottom: 80px; }
 
-/* PCでの基本スタイル */
-.capture-area { width: 1430px; background: #121212; padding: 30px 40px; box-sizing: border-box; border-radius: 8px; border: 1px solid #222; margin: 0 auto 40px auto; }
+/* PCでの基本スタイル。保存ボタンと保存範囲を同じ幅の枠に入れて揃える */
+.board-section { width: 1430px; margin: 0 auto 40px auto; }
+.capture-area { width: 1430px; background: #121212; padding: 30px 40px; box-sizing: border-box; border-radius: 8px; border: 1px solid #222; }
 
 /* 画面幅が足りない時は左詰めにして左端の見切れを防ぐ */
 @media (max-width: 1470px) {
-    .capture-area { margin: 0 0 40px 0; }
+    .board-section { margin: 0 0 40px 0; }
 }
 
 .header-container { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px; }
@@ -73,15 +76,23 @@ input[type="file"] { display: none; }
 .o-score { font-size: 0.8em; font-family: monospace; color: #00e676; }
 .o-rank { font-size: 0.9em; font-weight: bold; margin-top: 2px; }
 
-/* 保存ボタンは各ビューの中にあるので、ビューが非表示なら一緒に隠れる */
-.controls { position: fixed; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 999; }
-.btn-export { background: #1e90ff; color: white; border: none; padding: 10px 20px; font-size: 0.95em; font-weight: bold; border-radius: 4px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.5); width: 180px; text-align: center; }
+/* 各表の真上の保存ボタン。横スクロールしても画面の左端に残るようにする */
+.btn-export { position: sticky; left: 0; margin-bottom: 10px; background: #1e90ff; color: white; border: none; padding: 10px 20px; font-size: 1em; font-weight: bold; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
 .btn-export:hover { background: #0073e6; }
 .btn-export.busy { background: #555; }
 
-/* スマホ向けに保存ボタンを少し小さくして邪魔にならないようにする */
+/* スマホ幅: タブを ☰ メニューにたたみ、上部に固定する */
 @media (max-width: 768px) {
-    .controls { top: 10px; right: 10px; transform: scale(0.85); transform-origin: top right; }
+    #tab-menu { position: sticky; top: 0; z-index: 1000; flex-direction: column; gap: 0; margin: -12px -12px 16px; padding: 0; background: rgba(10,10,10,0.96); border-bottom: 1px solid #333; }
+    .menu-bar { display: flex; align-items: center; gap: 12px; padding: 10px 12px; }
+    .menu-toggle { background: #222; color: #fff; border: 1px solid #555; border-radius: 8px; width: 44px; height: 40px; font-size: 1.3em; cursor: pointer; flex-shrink: 0; }
+    #tab-menu.open .menu-toggle { background: #1e90ff; border-color: #1e90ff; }
+    .menu-current { font-weight: bold; font-size: 1.05em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .menu-items { display: none; }
+    #tab-menu.open .menu-items { display: flex; flex-direction: column; gap: 8px; padding: 4px 12px 14px; }
+    .menu-items .tab-buttons { display: flex; flex-direction: column; gap: 8px; }
+    .menu-items .tab-btn { width: 100%; padding: 12px 16px; text-align: left; box-sizing: border-box; }
+    .menu-items .data-status { align-self: flex-start; padding: 2px 4px; }
 }
 
 /* iOS用の画像保存モーダル */
@@ -111,3 +122,38 @@ input[type="file"] { display: none; }
 .x-link { display: inline-block; margin: 6px 0; background: #000; color: #fff; border: 1px solid #555; border-radius: 999px; padding: 8px 20px; font-weight: bold; text-decoration: none; font-size: 1.1em; }
 .x-link:hover { border-color: #fff; }
 .copyright { margin: 6px 0 0; }
+
+/* 達成状況表 */
+.summary-tool { max-width: 1100px; margin: 0 auto; }
+.summary-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; background: #1a1a1a; border: 1px solid #333; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; }
+.summary-control { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.summary-label { color: #999; font-size: 0.9em; font-weight: bold; }
+.summary-controls select { background: #222; color: #fff; border: 1px solid #555; border-radius: 6px; padding: 6px 8px; font-size: 1em; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: #333; color: #fff; border: 2px solid #555; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+.chip.active { background: #1e90ff; border-color: #1e90ff; }
+.btn-summary-export { background: #1e90ff; color: #fff; border: none; padding: 10px 20px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+.btn-summary-export.busy { background: #555; }
+.summary-note { width: 100%; margin: 0; color: #888; font-size: 0.85em; }
+.summary-empty { color: #999; text-align: center; padding: 40px 0; }
+
+/* 画像として保存する範囲。共有したときに読みやすい大きさで幅を固定する */
+.summary-capture { width: 1080px; background: #121212; border: 1px solid #222; border-radius: 8px; padding: 30px 36px; box-sizing: border-box; }
+.summary-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; border-bottom: 2px solid #333; padding-bottom: 14px; margin-bottom: 20px; }
+.summary-head h1 { margin: 0; font-size: 1.8em; letter-spacing: 1px; color: #eee; white-space: nowrap; }
+.summary-head .profile-info { margin-top: 0; justify-content: flex-end; }
+.summary-head > div:first-child { flex-shrink: 0; }
+.summary-cond { margin-top: 8px; white-space: nowrap; color: #1e90ff; font-weight: bold; letter-spacing: 1px; }
+.summary-big { width: 100%; border-collapse: collapse; font-size: 1.15em; }
+.summary-big th, .summary-big td { border-bottom: 1px solid #2a2a2a; padding: 10px 8px; text-align: center; font-weight: bold; }
+.summary-big tr:first-child th { font-size: 0.8em; color: #ccc; border-bottom: 2px solid #444; white-space: nowrap; }
+.summary-big td { font-family: monospace; font-size: 1.05em; }
+.summary-big tr > th:first-child { text-align: left; white-space: nowrap; font-size: 1em; }
+.summary-big .sum-num { color: #eee; }
+.summary-big .sum-rate { font-size: 0.95em; }
+.summary-big .sum-total { background: #1a1a1a; }
+.summary-big .sum-total th, .summary-big .sum-total td { border-top: 2px solid #444; }
+.sum-bar-cell { width: 220px; }
+.sum-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: #222; }
+.summary-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 16px; margin-top: 14px; color: #999; font-size: 0.85em; }
+.summary-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
