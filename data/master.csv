@@ -73,8 +73,8 @@ alicealamode,Alice à la mode,FTR,9,9.2
 alicessuitcase,Alice's Suitcase,PST,3,3.5
 alicessuitcase,Alice's Suitcase,PRS,6,6
 alicessuitcase,Alice's Suitcase,FTR,9,9.1
-alive,ALIVE,PST,,
-alive,ALIVE,PRS,,
+alive,ALIVE,PST,4,4.5
+alive,ALIVE,PRS,7+,7.8
 alive,ALIVE,FTR,10,10.2
 aloneandlorn,アローンアンドローン,PST,3,3
 aloneandlorn,アローンアンドローン,PRS,6,6.5
@@ -1234,9 +1234,9 @@ onelastdrive,One Last Drive,FTR,8,8.2
 onestepcloser,One Step Closer,PST,3,3.5
 onestepcloser,One Step Closer,PRS,7,7
 onestepcloser,One Step Closer,FTR,9,9.5
-opspectheme,Operation Spectrum Battle Theme,PST,,
-opspectheme,Operation Spectrum Battle Theme,PRS,,
-opspectheme,Operation Spectrum Battle Theme,FTR,,
+opspectheme,Operation Spectrum Battle Theme,PST,4,4
+opspectheme,Operation Spectrum Battle Theme,PRS,7,7
+opspectheme,Operation Spectrum Battle Theme,FTR,9,9.6
 opspectheme,Operation Spectrum Battle Theme,ETR,10+,10.8
 oracle,Oracle,PST,3,3
 oracle,Oracle,PRS,5,5.5
@@ -1520,9 +1520,9 @@ solitarydream,虚空の夢,FTR,8+,8.8
 someday,Someday,PST,3,3
 someday,Someday,PRS,6,6
 someday,Someday,FTR,9,9.5
-somniomancer,Somniomancer [null set],PST,,
-somniomancer,Somniomancer [null set],PRS,,
-somniomancer,Somniomancer [null set],FTR,,
+somniomancer,Somniomancer [null set],PST,5,5
+somniomancer,Somniomancer [null set],PRS,8,8.2
+somniomancer,Somniomancer [null set],FTR,9+,9.9
 somniomancer,Somniomancer [null set],ETR,10+,10.9
 soundwitch,SOUNDWiTCH,PST,3,3.5
 soundwitch,SOUNDWiTCH,PRS,6,6.5
