@@ -4,15 +4,17 @@ import { exportImage, exportJson } from './export.js';
 import { renderBoard, handleCoverError } from './board.js';
 import rank from './features/rank.js';
 import score from './features/score.js';
+import summary from './features/summary.js';
 import howto, { mountHowto } from './features/howto.js';
 
 // 機能を追加するときは js/features/ にファイルを作ってここに並べる
-// mount を持つ機能はスコアに関係なく一度だけ描画し、持たない機能は表(renderBoard)として描画する
+// mount を持つ機能は最初に一度だけ描画し、スコアが変わると update(全譜面, プロフィール) が呼ばれる
+// mount を持たない機能は表(renderBoard)として描画する
 // description を持つ機能はトップページにツールとして並べる
-const FEATURES = [rank, score, howto];
+const FEATURES = [rank, score, summary, howto];
 const BOARD_FEATURES = FEATURES.filter(f => !f.mount);
 const TOOL_FEATURES = FEATURES.filter(f => f.description);
-// 表に載せるのは定数10.0以上の譜面
+// ジャケットの表に載せるのは定数10.0以上の譜面
 const MIN_CONSTANT = 10.0;
 
 const diffMap = { 0: "PST", 1: "PRS", 2: "FTR", 3: "BYD", 4: "ETR" };
@@ -63,6 +65,13 @@ function switchMode(mode) {
         document.getElementById(`view-${f.id}`).style.display = f.id === mode ? 'block' : 'none';
         document.getElementById(`tab-${f.id}`).classList.toggle('active', f.id === mode);
     });
+    document.getElementById('menu-current').textContent = FEATURES.find(f => f.id === mode)?.label || '';
+}
+
+// スマホ幅の ☰ メニュー
+function setMenuOpen(open) {
+    document.getElementById('tab-menu').classList.toggle('open', open);
+    document.getElementById('menu-toggle').setAttribute('aria-expanded', String(open));
 }
 
 function showHome() {
@@ -98,10 +107,12 @@ function showData(data, savedAt) {
     currentData = data;
     playerProfile = data.profile;
 
-    const songs = mergeScores(data.scores);
+    const allSongs = mergeScores(data.scores);
+    const boardSongs = allSongs.filter(m => m.constant >= MIN_CONSTANT);
     BOARD_FEATURES.forEach(f => {
-        document.getElementById(`view-${f.id}`).innerHTML = renderBoard(songs, playerProfile, f);
+        document.getElementById(`view-${f.id}`).innerHTML = renderBoard(boardSongs, playerProfile, f);
     });
+    FEATURES.forEach(f => f.update?.(allSongs, playerProfile));
 
     const status = savedAt
         ? "最終更新: " + (collectedAt || new Date(savedAt).toLocaleString('ja-JP'))
@@ -201,13 +212,21 @@ async function main() {
     buildToolCards();
     mountHowto(document.getElementById('upload-howto'));
     document.getElementById('btn-home').addEventListener('click', showHome);
+    const menuToggle = document.getElementById('menu-toggle');
+    menuToggle.addEventListener('click', () => setMenuOpen(menuToggle.getAttribute('aria-expanded') !== 'true'));
+    // メニューの項目を選んだら閉じる（ファイル選択は選び終わってから閉じる）
+    const menuItems = document.getElementById('menu-items');
+    menuItems.addEventListener('click', e => {
+        if (e.target.closest('button')) setMenuOpen(false);
+    });
+    menuItems.addEventListener('change', () => setMenuOpen(false));
     document.getElementById('btn-backup').addEventListener('click', () => {
         if (currentData) exportJson(currentData);
     });
     const jsonInput = document.getElementById('json-input');
     const masterStatus = document.getElementById('master-status');
     try {
-        masterData = (await loadMaster()).filter(m => m.constant >= MIN_CONSTANT);
+        masterData = await loadMaster();
     } catch (err) {
         console.error(err);
         masterStatus.textContent = "❌ 楽曲データ(data/master.csv)を読み込めませんでした。";
