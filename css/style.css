@@ -1,0 +1,113 @@
+body { background: #0a0a0a; color: #fff; font-family: sans-serif; margin: 0; padding: 20px; }
+
+#home { max-width: 760px; margin: 6vh auto 0; }
+.home-hero { text-align: center; margin-bottom: 30px; }
+.home-hero h1 { margin: 0 0 15px; letter-spacing: 2px; }
+.home-hero p { color: #ccc; line-height: 1.8; }
+.home-section { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-sizing: border-box; overflow-wrap: anywhere; }
+.home-section h2 { margin: 0 0 16px; font-size: 1.3em; }
+.tool-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.tool-card { display: flex; flex-direction: column; gap: 8px; text-align: left; background: #222; color: #fff; border: 2px solid #444; border-radius: 10px; padding: 16px; cursor: pointer; transition: 0.2s; font: inherit; }
+.tool-card:hover { border-color: #1e90ff; background: #1c2633; }
+.tool-card-title { font-size: 1.15em; font-weight: bold; }
+.tool-card-desc { color: #aaa; font-size: 0.9em; line-height: 1.6; }
+.data-panel { text-align: center; transition: border-color 0.3s; }
+.data-panel.attention { border-color: #ffb300; }
+.home-data-status { color: #ccc; }
+.file-upload-btn { background: #1e90ff; color: #fff; padding: 15px 30px; font-size: 1.2em; border-radius: 8px; cursor: pointer; display: inline-block; font-weight: bold; transition: 0.2s; }
+.file-upload-btn:has(input:disabled) { background: #555; cursor: wait; }
+@media (max-width: 768px) {
+    body { padding: 12px; }
+    #home { margin-top: 3vh; }
+    .home-hero h1 { font-size: 1.6em; }
+    .home-section { padding: 18px 14px; }
+}
+.master-status { color: #999; font-size: 0.9em; min-height: 1.2em; }
+.master-status.error { color: #ff4c4c; }
+input[type="file"] { display: none; }
+
+#tab-menu { display: none; justify-content: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+.tab-buttons { display: contents; }
+.tab-btn { background: #333; color: #fff; border: 2px solid #555; padding: 12px 30px; font-size: 1.1em; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+.tab-btn.active { background: #1e90ff; border-color: #1e90ff; }
+.data-status { align-self: center; color: #999; font-size: 0.85em; }
+
+/* 横スクロールを許可するラッパー */
+#app-content { display: none; width: 100%; overflow-x: auto; padding-bottom: 80px; }
+
+/* PCでの基本スタイル */
+.capture-area { width: 1430px; background: #121212; padding: 30px 40px; box-sizing: border-box; border-radius: 8px; border: 1px solid #222; margin: 0 auto 40px auto; }
+
+/* 画面幅が足りない時は左詰めにして左端の見切れを防ぐ */
+@media (max-width: 1470px) {
+    .capture-area { margin: 0 0 40px 0; }
+}
+
+.header-container { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+.header-container h1 { margin: 0; color: #eee; letter-spacing: 2px; font-size: 2.2em; }
+.title-sub { color: #1e90ff; font-size: 0.7em; letter-spacing: 1px; }
+.profile-info { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 24px; margin-top: 12px; color: #999; font-size: 0.95em; }
+.profile-name { color: #fff; font-size: 1.5em; font-weight: bold; }
+.profile-rating { color: #00e676; font-size: 1.3em; font-weight: bold; font-family: monospace; }
+
+.summary-table { border-collapse: collapse; font-size: 0.9em; background: #0a0a0a; border: 1px solid #444; }
+.summary-table th, .summary-table td { border: 1px solid #333; padding: 4px 12px; text-align: right; font-family: monospace; font-weight: bold; }
+.summary-table th { background: #1a1a1a; color: #eee; text-align: center; font-family: sans-serif; font-size: 0.85em; }
+.summary-table .lvl-col { text-align: center; color: #fff; background: #1a1a1a; font-family: sans-serif; }
+.summary-table .rate { color: #00e676; }
+
+.constant-section { margin-bottom: 35px; }
+.constant-header { font-size: 1.6em; font-weight: bold; border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 15px; color: #ccc; }
+.tile-container { display: flex; flex-wrap: wrap; gap: 12px; }
+.tile { width: 100px; height: 100px; position: relative; border-radius: 0px; border: 2px solid #444; overflow: hidden; background: #222; box-sizing: border-box; }
+.jacket { width: 100%; height: 100%; object-fit: cover; }
+.noplay .jacket { filter: grayscale(100%) brightness(30%); }
+
+.grade, .score-bar { position: absolute; bottom: 0; left: 0; width: 100%; text-align: center; font-weight: bold; padding: 2px 0; z-index: 2; border-top: 1px solid #333; white-space: nowrap; line-height: 1.2; }
+.grade { font-size: 1.2em; }
+.score-bar { font-size: var(--score-font-size, 15px); font-family: monospace; }
+
+.overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; opacity: 0; transition: opacity 0.2s; z-index: 3; padding: 4px; box-sizing: border-box; }
+.tile:hover .overlay { opacity: 1; }
+.o-title { font-size: 0.75em; margin-bottom: 5px; font-weight: bold; word-break: break-all; }
+.o-score { font-size: 0.8em; font-family: monospace; color: #00e676; }
+.o-rank { font-size: 0.9em; font-weight: bold; margin-top: 2px; }
+
+/* 保存ボタンは各ビューの中にあるので、ビューが非表示なら一緒に隠れる */
+.controls { position: fixed; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 999; }
+.btn-export { background: #1e90ff; color: white; border: none; padding: 10px 20px; font-size: 0.95em; font-weight: bold; border-radius: 4px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.5); width: 180px; text-align: center; }
+.btn-export:hover { background: #0073e6; }
+.btn-export.busy { background: #555; }
+
+/* スマホ向けに保存ボタンを少し小さくして邪魔にならないようにする */
+@media (max-width: 768px) {
+    .controls { top: 10px; right: 10px; transform: scale(0.85); transform-origin: top right; }
+}
+
+/* iOS用の画像保存モーダル */
+.export-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 100000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.export-modal p { color: #00ffff; font-weight: bold; margin-bottom: 15px; }
+.export-modal img { max-width: 95%; max-height: 75vh; border: 2px solid #555; border-radius: 8px; }
+.export-modal button { margin-top: 20px; padding: 10px 20px; font-size: 1.1em; font-weight: bold; cursor: pointer; background: #ff4c4c; color: #fff; border: none; border-radius: 4px; }
+
+/* 取得方法 */
+.upload-howto { margin-top: 30px; text-align: left; }
+.upload-howto summary { cursor: pointer; color: #1e90ff; font-weight: bold; text-align: center; }
+.howto { max-width: 760px; margin: 0 auto; background: #121212; border: 1px solid #222; border-radius: 8px; padding: 20px 24px; box-sizing: border-box; line-height: 1.7; text-align: left; }
+.upload-howto .howto { margin-top: 15px; padding: 10px 4px; border: none; background: none; }
+.howto h2 { margin-top: 0; }
+.howto h3 { margin: 24px 0 8px; color: #1e90ff; font-size: 1.05em; }
+.howto ul { padding-left: 1.3em; margin: 6px 0; }
+.howto a { color: #4fc3f7; }
+.howto-note { color: #999; font-size: 0.9em; }
+.howto-modes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.howto-mode { background: #333; color: #fff; border: 2px solid #555; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+.howto-mode.active { background: #1e90ff; border-color: #1e90ff; }
+.howto-code { width: 100%; box-sizing: border-box; background: #0a0a0a; color: #ccc; border: 1px solid #444; border-radius: 4px; padding: 8px; font-family: monospace; font-size: 0.85em; resize: vertical; word-break: break-all; }
+.howto-copy { margin-top: 8px; background: #1e90ff; color: #fff; border: none; padding: 10px 20px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+
+/* 全画面共通のフッター */
+.site-footer { max-width: 760px; margin: 40px auto 0; padding: 20px 10px 10px; border-top: 1px solid #333; text-align: center; color: #888; font-size: 0.8em; line-height: 1.8; }
+.x-link { display: inline-block; margin: 6px 0; background: #000; color: #fff; border: 1px solid #555; border-radius: 999px; padding: 8px 20px; font-weight: bold; text-decoration: none; font-size: 1.1em; }
+.x-link:hover { border-color: #fff; }
+.copyright { margin: 6px 0 0; }
