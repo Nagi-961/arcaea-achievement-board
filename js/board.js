@@ -19,6 +19,66 @@ const SECTIONS = [
 
 const COVER_DIR = 'covers';
 
+// ジャケットオフ（黒地に曲名＋ランク/スコア）の設定。実績ランク表とスコア特化表で共有し、ブラウザに覚えさせる
+const COVERS_OFF_KEY = 'arcaea_covers_off_v1';
+
+export function isCoversOff() {
+    try { return localStorage.getItem(COVERS_OFF_KEY) === '1'; } catch { return false; }
+}
+
+export function setCoversOff(off) {
+    try { localStorage.setItem(COVERS_OFF_KEY, off ? '1' : '0'); } catch { /* 保存できなくても表示は切り替える */ }
+    document.documentElement.classList.toggle('covers-off', off);
+    document.querySelectorAll('.btn-cover-toggle').forEach(b => {
+        b.textContent = coverToggleLabel(off);
+        b.setAttribute('aria-pressed', String(off));
+    });
+}
+
+// ジャケットオフで曲名をタイル内に収める文字サイズ(px)を、折り返しを真似て canvas で測って決める
+const TITLE_BOX = { width: 84, height: 42, lineHeight: 1.15, max: 12, min: 7 };
+const titleSizeCache = new Map();
+let measureCtx = null;
+
+// 戻り値: { lines: 行数, splitWord: 英単語を途中で割ったか }
+function layoutTitle(title, size) {
+    measureCtx.font = `bold ${size}px sans-serif`;
+    const fits = text => measureCtx.measureText(text).width <= TITLE_BOX.width;
+    let lines = 1, line = '', splitWord = false;
+    // ブラウザと同じく、スペースの位置と「-」の後ろで折り返せるものとして並べる
+    const tokens = title.split(/(\s+)/).flatMap(t => /^\s+$/.test(t) ? [t] : t.split(/(?<=-)/));
+    for (const word of tokens) {
+        if (word === '') continue;
+        if (fits(line + word)) { line += word; continue; }
+        if (/^\s+$/.test(word)) continue;
+        if (line.trim() !== '' && fits(word)) { lines++; line = word; continue; }
+        // 収まらない単語は1文字ずつ詰める（日本語は普通に1文字ずつ折り返る）
+        if (!/[^\x00-\u024f]/.test(word)) splitWord = true;
+        for (const ch of word) {
+            if (fits(line + ch)) line += ch;
+            else { lines++; line = ch; }
+        }
+    }
+    return { lines, splitWord };
+}
+
+function titleFontSize(title) {
+    if (titleSizeCache.has(title)) return titleSizeCache.get(title);
+    measureCtx ??= document.createElement('canvas').getContext('2d');
+    let size = TITLE_BOX.max;
+    // 高さに収まり、英単語を途中で割らずに済むまで小さくする
+    for (; size > TITLE_BOX.min; size -= 0.5) {
+        const { lines, splitWord } = layoutTitle(title, size);
+        if (!splitWord && lines * size * TITLE_BOX.lineHeight <= TITLE_BOX.height) break;
+    }
+    titleSizeCache.set(title, size);
+    return size;
+}
+
+function coverToggleLabel(off) {
+    return off ? '⬛ ジャケット: OFF（曲名表示）' : '🖼 ジャケット: ON';
+}
+
 export function escapeHtml(value) {
     const div = document.createElement('div');
     div.textContent = value ?? '-';
@@ -85,14 +145,15 @@ function tileHtml(song, feature) {
         <div class="tile${noplayCls}" style="border-color: ${dColor};">
             <img src="${src}" class="jacket" alt="${title}" data-song-id="${escapeHtml(song.song_id)}">
             ${feature.tileBar(song, gColor)}
-            <div class="overlay"><div class="o-title">${title}</div>${feature.overlayInfo(song, gColor)}</div>
+            <div class="overlay"><div class="o-title" style="--title-size:${titleFontSize(song.title ?? '')}px;">${title}</div>${feature.overlayInfo(song, gColor)}</div>
         </div>`;
 }
 
 // feature: { id, heading, sectionSuffix, sortSongs, tileBar, overlayInfo }
 export function renderBoard(songs, profile, feature) {
     const summaryHtml = summaryTableHtml(songs);
-    let areasHtml = '';
+    const off = isCoversOff();
+    let areasHtml = `<button class="btn-cover-toggle" type="button" aria-pressed="${off}">${coverToggleLabel(off)}</button>`;
 
     SECTIONS.forEach(sec => {
         const sectionSongs = songs.filter(song => sec.levels ? sec.levels.includes(song.level)
