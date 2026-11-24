@@ -81,7 +81,7 @@ input[type="file"] { display: none; }
 .covers-off .jacket { visibility: hidden; }
 .covers-off .overlay { opacity: 1; background: #000; z-index: 1; padding-bottom: 28px; transition: none; }
 /* 文字サイズは board.js が曲名ごとに計算。最小サイズでも収まらない曲名は「…」で切る */
-.covers-off .o-title { font-size: var(--title-size, 0.75em); line-height: 1.15; max-height: 42px; word-break: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; overflow: hidden; flex-shrink: 0; }
+.covers-off .o-title { font-size: var(--title-size, 0.75em); line-height: 1.15; max-height: 42px; word-break: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; line-clamp: 5; overflow: hidden; flex-shrink: 0; }
 .covers-off .noplay .o-title { color: #777; }
 
 .btn-cover-toggle { position: sticky; left: 0; display: block; margin-bottom: 16px; background: #222; color: #fff; border: 1px solid #555; padding: 10px 20px; font-size: 1em; font-weight: bold; border-radius: 6px; cursor: pointer; }
