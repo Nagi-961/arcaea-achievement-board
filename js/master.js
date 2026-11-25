@@ -1,6 +1,7 @@
 // 楽曲マスタ(data/master.csv)の読み込み。不正な行は console に警告して読み飛ばす
 
 const MASTER_URL = 'data/master.csv';
+// notes(総ノーツ数)は任意の列。空欄なら null
 const COLUMNS = ['song_id', 'title', 'difficulty', 'level', 'constant'];
 const DIFFICULTIES = ['PST', 'PRS', 'FTR', 'BYD', 'ETR', 'INS'];
 const LEVEL_PATTERN = /^\d+\+?$/;
@@ -36,6 +37,7 @@ function validateRow(row) {
     if (!DIFFICULTIES.includes(row.difficulty)) return `difficulty が不正 (${row.difficulty})`;
     if (!LEVEL_PATTERN.test(row.level)) return `level が不正 (${row.level})`;
     if (!Number.isFinite(Number(row.constant))) return `constant が不正 (${row.constant})`;
+    if (row.notes && !/^[1-9]\d*$/.test(row.notes)) return `notes が不正 (${row.notes})`;
     return null;
 }
 
@@ -77,6 +79,7 @@ export async function loadMaster() {
             difficulty: row.difficulty,
             level: row.level,
             constant: Number(row.constant),
+            notes: row.notes ? Number(row.notes) : null,
         });
     });
     if (unfilled > 0) console.warn(`master.csv: レベル・定数が未入力の行が ${unfilled} 件あります`);

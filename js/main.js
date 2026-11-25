@@ -5,13 +5,15 @@ import { renderBoard, handleCoverError, isCoversOff, setCoversOff } from './boar
 import rank from './features/rank.js';
 import score from './features/score.js';
 import summary from './features/summary.js';
+import target from './features/target.js';
 import howto, { mountHowto } from './features/howto.js';
 
 // 機能を追加するときは js/features/ にファイルを作ってここに並べる
 // mount を持つ機能は最初に一度だけ描画し、スコアが変わると update(全譜面, プロフィール) が呼ばれる
 // mount を持たない機能は表(renderBoard)として描画する
 // description を持つ機能はトップページにツールとして並べる
-const FEATURES = [rank, score, summary, howto];
+// needsData: false の機能は all.json なしでも開ける。setMaster(楽曲マスタ) はマスタの読み込み後に呼ばれる
+const FEATURES = [rank, score, summary, target, howto];
 const BOARD_FEATURES = FEATURES.filter(f => !f.mount);
 const TOOL_FEATURES = FEATURES.filter(f => f.description);
 // ジャケットの表に載せるのは定数10.0以上の譜面
@@ -55,7 +57,12 @@ function mergeScores(scoreList) {
 
     return masterData.map(song => {
         const rec = scoreDict[song.song_id + "_" + song.difficulty];
-        return { ...song, grade: calcGrade(rec), scoreVal: rec ? rec.score || 0 : 0 };
+        // record: 自己ベストの判定内訳（スコア目標計算機で使う）
+        const record = rec && rec.score > 0 ? {
+            score: rec.score, pure: rec.perfect_count || 0, far: rec.near_count || 0,
+            lost: rec.miss_count || 0, shiny: rec.shiny_perfect_count || 0,
+        } : null;
+        return { ...song, grade: calcGrade(rec), scoreVal: rec ? rec.score || 0 : 0, record };
     });
 }
 
@@ -91,7 +98,7 @@ function openTool(mode) {
 
 // データがなければ、先に all.json を選んでもらう
 function selectTool(mode) {
-    if (currentData) {
+    if (currentData || FEATURES.find(f => f.id === mode)?.needsData === false) {
         openTool(mode);
         return;
     }
@@ -236,6 +243,7 @@ async function main() {
         return;
     }
     masterStatus.textContent = '';
+    FEATURES.forEach(f => f.setMaster?.(masterData));
     jsonInput.disabled = false;
     jsonInput.addEventListener('change', handleScoreFile);
     document.getElementById('json-update-input').addEventListener('change', handleScoreFile);
