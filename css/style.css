@@ -169,3 +169,55 @@ input[type="file"] { display: none; }
 .sum-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: #222; }
 .summary-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 16px; margin-top: 14px; color: #999; font-size: 0.85em; }
 .summary-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+/* スコア目標計算機 */
+.tg-tool [hidden] { display: none !important; }
+.tg-tool { max-width: 1100px; margin: 0 auto; }
+.tg-input { background: #222; color: #fff; border: 1px solid #555; border-radius: 6px; padding: 8px 10px; font-size: 1em; box-sizing: border-box; }
+.tg-score { width: 250px; }
+.tg-loss { width: 90px; }
+.tg-hint { color: #888; font-size: 0.85em; }
+.tg-calc { margin-bottom: 16px; }
+.tg-search { width: 100%; font-size: 1.1em; padding: 12px 14px; }
+.tg-hits { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; max-height: 320px; overflow-y: auto; }
+.tg-hit, .tg-open { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; text-align: left; background: #1a1a1a; color: #fff; border: 1px solid #333; border-radius: 6px; padding: 8px 12px; cursor: pointer; font: inherit; }
+.tg-hit:hover, .tg-open:hover { border-color: #1e90ff; }
+.tg-hit.active { border-color: #1e90ff; background: #1c2633; }
+.tg-open { background: none; border: none; padding: 0; }
+.tg-open:hover .tg-title { color: #1e90ff; text-decoration: underline; }
+.tg-diff { display: inline-block; min-width: 34px; text-align: center; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; font-weight: bold; color: #fff; text-shadow: 0 0 3px #000; }
+.tg-title { font-weight: bold; }
+.tg-meta { color: #999; font-size: 0.9em; }
+.tg-empty { color: #999; text-align: center; padding: 30px 0; }
+.tg-result { background: #121212; border: 1px solid #333; border-radius: 10px; padding: 20px 24px; }
+.tg-chart { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 1.3em; margin-bottom: 8px; }
+.tg-facts { color: #bbb; margin-bottom: 16px; line-height: 1.7; }
+.tg-facts b { color: #1e90ff; }
+.tg-table { border-collapse: collapse; min-width: 320px; }
+.tg-table th, .tg-table td { border-bottom: 1px solid #2a2a2a; padding: 8px 14px; text-align: center; font-weight: bold; white-space: nowrap; }
+.tg-table tr:first-child th { color: #ccc; font-size: 0.85em; border-bottom: 2px solid #444; }
+.tg-table td { font-family: monospace; font-size: 1.05em; }
+.tg-table small { color: #888; font-weight: normal; }
+.tg-far { color: #ffd700; }
+.tg-ng { color: #666; }
+.tg-ok { color: #00e676; }
+.tg-warn { color: #ff8a65; font-weight: bold; }
+.tg-note { color: #888; font-size: 0.85em; margin: 8px 0 0; }
+.tg-best { margin-top: 20px; padding: 16px 18px; background: #1a1a1a; border-left: 4px solid #1e90ff; border-radius: 6px; }
+.tg-best-title { color: #999; font-size: 0.85em; font-weight: bold; }
+.tg-best-score { font-family: monospace; font-size: 1.6em; font-weight: bold; color: #00e676; }
+.tg-best-judge, .tg-best-loss { color: #ccc; margin-top: 4px; }
+.tg-use-loss { margin-left: 8px; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+.tg-advice { margin: 12px 0 0; padding-left: 20px; line-height: 1.9; }
+.tg-advice b { color: #ffd700; font-size: 1.15em; }
+.tg-advice.ok { padding-left: 0; color: #00e676; font-weight: bold; }
+.tg-scroll { overflow-x: auto; }
+.tg-list { width: 100%; }
+.tg-list tr > th:first-child { text-align: left; white-space: normal; min-width: 240px; }
+.tg-bestcell { color: #ccc; }
+@media (max-width: 768px) {
+    .tg-score { width: 100%; }
+    .tg-result { padding: 14px; }
+    .tg-chart { font-size: 1.1em; }
+    .tg-table th, .tg-table td { padding: 6px 8px; }
+}
