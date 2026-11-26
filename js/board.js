@@ -1,4 +1,7 @@
 // 実績ランク表・スコア特化表で共通の、集計表とジャケットタイルの描画
+// PC幅では画像レイアウト(capture-area)をそのまま見せ、スマホ幅ではジャケット付きリストを見せる。
+// スマホで画像を作るときは preview.js が capture-area をプレビューに移して表示・保存する
+import { playPotential } from './calc.js';
 
 export const diffColors = { "FTR": "#9932cc", "ETR": "#d8bfd8", "BYD": "#dc143c", "INS": "#1e90ff", "PST": "#4fc3f7", "PRS": "#81c784" };
 const gradeColors = {
@@ -75,7 +78,7 @@ function titleFontSize(title) {
     return size;
 }
 
-function coverToggleLabel(off) {
+export function coverToggleLabel(off) {
     return off ? '⬛ ジャケット: OFF（曲名表示）' : '🖼 ジャケット: ON';
 }
 
@@ -149,21 +152,100 @@ function tileHtml(song, feature) {
         </div>`;
 }
 
+// ---- スマホ幅のリスト ----
+const CLEAR_LABELS = { 0: 'TRACK LOST', 1: 'NORMAL CLEAR', 2: 'FULL RECALL', 3: 'PURE MEMORY', 4: 'EASY CLEAR', 5: 'HARD CLEAR' };
+// リストで選んでいるレベル帯(機能ごと)。データ更新で描き直しても維持する
+const activeSection = {};
+
+// ランクの色はテーマで変えるので、CSS のクラスで指定する（EX+ → g-EXp, NO PLAY → g-NP）
+function gradeClass(grade) {
+    return 'g-' + (grade === 'NO PLAY' ? 'NP' : grade.replace('+', 'p'));
+}
+
+function listDetailHtml(song) {
+    const r = song.record;
+    if (!r) return '<div class="bl-detail"><p class="bl-none">まだプレイしていません。</p></div>';
+    const played = Number.isFinite(r.time_played) ? new Date(r.time_played).toLocaleDateString('ja-JP') : '-';
+    const pot = playPotential(song.constant, r.score, r.clear !== 0).toFixed(3);
+    return `<div class="bl-detail">
+            <dl class="bl-judge">
+                <div><dt>PURE</dt><dd>${r.pure}<small>（光 ${r.shiny}）</small></dd></div>
+                <div><dt>FAR</dt><dd>${r.far}</dd></div>
+                <div><dt>LOST</dt><dd>${r.lost}</dd></div>
+            </dl>
+            <dl class="bl-facts">
+                <div><dt>単曲ポテンシャル</dt><dd>${pot}</dd></div>
+                <div><dt>クリア</dt><dd>${CLEAR_LABELS[r.clear] ?? '-'}</dd></div>
+                <div><dt>定数</dt><dd>${song.constant.toFixed(1)}</dd></div>
+                <div><dt>最終プレイ</dt><dd>${played}</dd></div>
+            </dl>
+        </div>`;
+}
+
+function listRowHtml(song) {
+    const title = escapeHtml(song.title);
+    const src = `${COVER_DIR}/${encodeURIComponent(song.song_id)}_${song.difficulty}.png`;
+    const score = song.scoreVal > 0 ? song.scoreVal.toLocaleString() : '---';
+    // タップで開く詳細は <details> に任せる（JS 不要）
+    return `<details class="bl-row${song.scoreVal === 0 ? ' noplay' : ''}">
+            <summary>
+                <img src="${src}" class="jacket bl-jacket" alt="" loading="lazy" data-song-id="${escapeHtml(song.song_id)}" style="border-color:${diffColors[song.difficulty] || '#444'};">
+                <span class="bl-main">
+                    <span class="bl-title">${title}</span>
+                    <span class="bl-meta"><span class="tg-diff" style="background:${diffColors[song.difficulty] || '#444'};">${song.difficulty}</span> Lv ${escapeHtml(song.level)}</span>
+                </span>
+                <span class="bl-right">
+                    <span class="bl-grade ${gradeClass(song.grade)}">${song.grade}</span>
+                    <span class="bl-score">${score}</span>
+                </span>
+            </summary>
+            ${listDetailHtml(song)}
+        </details>`;
+}
+
+function listSectionHtml(sec, grouped, feature, areaId, active) {
+    const groups = Object.keys(grouped).map(Number).sort((a, b) => b - a).map(c => {
+        const rows = grouped[c].slice().sort(feature.sortSongs).map(listRowHtml).join('');
+        return `<div class="bl-group"><h3 class="bl-cc">CC ${c.toFixed(1)}<span>${grouped[c].length} 譜面</span></h3>${rows}</div>`;
+    }).join('');
+    return `<div class="bl-section" data-sec="${sec.key}"${active ? '' : ' hidden'}>
+            <button class="btn-preview" type="button" data-area="${areaId}" data-label="${sec.label}${feature.sectionSuffix}" data-filename="arcaea_${feature.id}_${sec.key}.png">📷 ${sec.label} の画像を作る</button>
+            ${groups}
+        </div>`;
+}
+
+// リストのレベル帯タブの切り替え。main.js のクリック処理から呼ぶ。タブを押したら true
+export function handleListTab(e, featureId) {
+    const tab = e.target.closest('.bl-tab');
+    if (!tab) return false;
+    const list = tab.closest('.board-list');
+    activeSection[featureId] = tab.dataset.sec;
+    list.querySelectorAll('.bl-tab').forEach(t => t.classList.toggle('active', t === tab));
+    list.querySelectorAll('.bl-section').forEach(s => { s.hidden = s.dataset.sec !== tab.dataset.sec; });
+    return true;
+}
+
 // feature: { id, heading, sectionSuffix, sortSongs, tileBar, overlayInfo }
 export function renderBoard(songs, profile, feature) {
     const summaryHtml = summaryTableHtml(songs);
     const off = isCoversOff();
     let areasHtml = `<button class="btn-cover-toggle" type="button" aria-pressed="${off}">${coverToggleLabel(off)}</button>`;
+    let tabsHtml = '', listHtml = '';
+    const available = SECTIONS.filter(sec => songs.some(song => inSection(sec, song)));
+    if (!available.some(sec => sec.key === activeSection[feature.id])) activeSection[feature.id] = available[0]?.key;
 
     SECTIONS.forEach(sec => {
-        const sectionSongs = songs.filter(song => sec.levels ? sec.levels.includes(song.level)
-            : !SECTIONS.some(s => s.levels && s.levels.includes(song.level)));
+        const sectionSongs = songs.filter(song => inSection(sec, song));
         if (sectionSongs.length === 0) return;
 
         const areaId = `${feature.id}-area-${sec.key}`;
 
         const grouped = {};
         sectionSongs.forEach(song => { (grouped[song.constant] ??= []).push(song); });
+
+        const active = sec.key === activeSection[feature.id];
+        tabsHtml += `<button class="chip bl-tab${active ? ' active' : ''}" type="button" data-sec="${sec.key}">${sec.label}</button>`;
+        listHtml += listSectionHtml(sec, grouped, feature, areaId, active);
 
         // 保存ボタンは画像に写らないよう、保存範囲(capture-area)の外の真上に置く
         areasHtml += `<div class="board-section">
@@ -184,7 +266,16 @@ export function renderBoard(songs, profile, feature) {
         areasHtml += `</div></div>`;
     });
 
-    return areasHtml;
+    return `${areasHtml}
+        <div class="board-list">
+            <div class="chips bl-tabs">${tabsHtml}</div>
+            ${listHtml}
+        </div>`;
+}
+
+function inSection(sec, song) {
+    return sec.levels ? sec.levels.includes(song.level)
+        : !SECTIONS.some(s => s.levels && s.levels.includes(song.level));
 }
 
 // error イベントはバブリングしないので、ビューに capture で登録して使う

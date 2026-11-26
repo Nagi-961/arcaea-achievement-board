@@ -28,7 +28,9 @@ function showModal(imgSrc) {
 
 // 合体済みのスコアを all.json として書き出す（スマホは共有シート、だめならダウンロード）
 export async function exportJson(data) {
-    const text = JSON.stringify({ profile: data.profile, scores: data.scores }, null, 2);
+    const out = { profile: data.profile, scores: data.scores };
+    if (data.history) out.history = data.history;
+    const text = JSON.stringify(out, null, 2);
     const filename = fileDatePrefix(data.profile) + '_all.json';
     const file = new File([text], filename, { type: 'text/plain' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -55,7 +57,9 @@ export async function exportImage(areaId, filename, btn, profile) {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
     try {
-        const canvas = await html2canvas(element, { backgroundColor: '#121212', scale: 2.5, useCORS: true });
+        // 見出しの Web フォントが読み込み終わってから撮る
+        await document.fonts.ready;
+        const canvas = await html2canvas(element, { backgroundColor: '#0e0e24', scale: 2.5, useCORS: true });
         if (isIOS) {
             showModal(canvas.toDataURL('image/png'));
         } else {

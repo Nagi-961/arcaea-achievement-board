@@ -1,10 +1,14 @@
 import { loadMaster } from './master.js';
 import { normalizeData, mergeData, saveData, loadSavedData } from './storage.js';
 import { exportImage, exportJson } from './export.js';
-import { renderBoard, handleCoverError, isCoversOff, setCoversOff } from './board.js';
+import { loadHistory, recordHistory, importHistory } from './history.js';
+import { renderBoard, handleCoverError, isCoversOff, setCoversOff, handleListTab } from './board.js';
+import { openPreview } from './preview.js';
+import { gradeOfRecord } from './calc.js';
 import rank from './features/rank.js';
 import score from './features/score.js';
 import summary from './features/summary.js';
+import growth from './features/growth.js';
 import target from './features/target.js';
 import howto, { mountHowto } from './features/howto.js';
 
@@ -13,7 +17,7 @@ import howto, { mountHowto } from './features/howto.js';
 // mount を持たない機能は表(renderBoard)として描画する
 // description を持つ機能はトップページにツールとして並べる
 // needsData: false の機能は all.json なしでも開ける。setMaster(楽曲マスタ) はマスタの読み込み後に呼ばれる
-const FEATURES = [rank, score, summary, target, howto];
+const FEATURES = [rank, score, summary, growth, target, howto];
 const BOARD_FEATURES = FEATURES.filter(f => !f.mount);
 const TOOL_FEATURES = FEATURES.filter(f => f.description);
 // ジャケットの表に載せるのは定数10.0以上の譜面
@@ -27,22 +31,6 @@ let currentData = null;
 let currentMode = null;
 // データ読み込み前に選んだツール。読み込みが終わったらそれを開く
 let pendingMode = null;
-
-function calcGrade(rec) {
-    const score = rec ? rec.score || 0 : 0;
-    if (score <= 0) return "NO PLAY";
-    if (rec.clear_type === 3) {
-        const totalNotes = (rec.perfect_count || 0) + (rec.near_count || 0) + (rec.miss_count || 0);
-        return (totalNotes > 0 && score >= 10000000 + totalNotes) ? "MAX" : "PM";
-    }
-    if (score >= 9900000) return "EX+";
-    if (score >= 9800000) return "EX";
-    if (score >= 9500000) return "AA";
-    if (score >= 9200000) return "A";
-    if (score >= 8900000) return "B";
-    if (score >= 8600000) return "C";
-    return "D";
-}
 
 // マスタの各譜面にスコアとランクを付ける
 function mergeScores(scoreList) {
@@ -61,8 +49,9 @@ function mergeScores(scoreList) {
         const record = rec && rec.score > 0 ? {
             score: rec.score, pure: rec.perfect_count || 0, far: rec.near_count || 0,
             lost: rec.miss_count || 0, shiny: rec.shiny_perfect_count || 0,
+            time_played: rec.time_played, clear: rec.best_clear_type ?? rec.clear_type ?? 0,
         } : null;
-        return { ...song, grade: calcGrade(rec), scoreVal: rec ? rec.score || 0 : 0, record };
+        return { ...song, grade: gradeOfRecord(rec), scoreVal: rec ? rec.score || 0 : 0, record };
     });
 }
 
@@ -133,6 +122,25 @@ function showData(data, savedAt) {
     if (currentMode) switchMode(currentMode);
 }
 
+// 読み込んだ JSON(ファイル or collect.js から受信)を保存済みデータと合体して表示する。成功したら true
+function importRaw(raw) {
+    const data = normalizeData(raw);
+    if (!data) {
+        alert("JSONの読み込みに失敗しました。");
+        return false;
+    }
+    const merged = mergeData(currentData, data);
+    if (!merged && !confirm("保存済みのデータとは別のユーザーのデータです。置き換えますか？")) return false;
+    // 成長記録用の履歴。バックアップに履歴が入っていれば先に合体する
+    importHistory(raw && raw.history, data.profile && data.profile.user_code);
+    recordHistory(data);
+    const result = merged || data;
+    const savedAt = saveData(result);
+    showData(result, savedAt);
+    if (!savedAt) alert("ブラウザへの保存に失敗しました。次回もファイルの選択が必要です。");
+    return true;
+}
+
 function handleScoreFile(e) {
     const input = e.target;
     const file = input.files[0];
@@ -141,30 +149,51 @@ function handleScoreFile(e) {
     reader.onload = event => {
         // 同じファイルを続けて選んでも change が発火するように空にする
         input.value = '';
-        let data;
+        let raw = null;
         try {
-            data = normalizeData(JSON.parse(event.target.result));
+            raw = JSON.parse(event.target.result);
         } catch (err) {
-            data = null;
+            // importRaw が失敗を知らせる
         }
-        if (!data) {
-            alert("JSONファイルの読み込みに失敗しました。");
-            return;
-        }
-        const merged = mergeData(currentData, data);
-        if (merged) {
-            data = merged;
-        } else if (!confirm("保存済みのデータとは別のユーザーのデータです。置き換えますか？")) {
-            return;
-        }
-        const savedAt = saveData(data);
-        showData(data, savedAt);
+        if (!importRaw(raw)) return;
         // トップページから読み込んだときは、選んでいたツール(なければ最初のツール)を開く
         if (input.id === 'json-input') openTool(pendingMode || TOOL_FEATURES[0].id);
         pendingMode = null;
-        if (!savedAt) alert("ブラウザへの保存に失敗しました。次回もファイルの選択が必要です。");
     };
     reader.readAsText(file);
+}
+
+// collect.js の「サイトに送る」で開かれたとき(#import)は、開いた側に合図を送ってデータを受け取る
+// データは Arcaea Online(lowiro.com)からのものだけ受け付ける
+const COLLECT_ORIGIN = /^https:\/\/([a-z0-9-]+\.)*lowiro\.com$/;
+
+function listenForCollect() {
+    if (location.hash !== '#import') return;
+    history.replaceState(null, '', location.pathname + location.search);
+    const opener = window.opener;
+    const status = document.getElementById('home-data-status');
+    if (!opener) {
+        status.textContent = "⚠️ Arcaea Online のタブが見つかりませんでした。もう一度「🌐 サイトに送る」を押すか、ファイルで読み込んでください。";
+        return;
+    }
+    status.textContent = "📡 Arcaea Online からデータを受け取っています...";
+    let done = false;
+    // 合図自体はデータを含まないので、送り先を限定しない(Arcaea Online のアドレスが変わっても動くように)
+    const ping = () => { try { opener.postMessage({ type: 'arcaea-ready' }, '*'); } catch (err) { /* タブが閉じられた */ } };
+    const timer = setInterval(() => { if (!done) ping(); }, 700);
+    setTimeout(() => {
+        clearInterval(timer);
+        if (!done) status.textContent = "⚠️ データを受け取れませんでした。Arcaea Online のタブで「🌐 サイトに送る」をもう一度押すか、ファイルで読み込んでください。";
+    }, 30000);
+    window.addEventListener('message', e => {
+        if (done || e.source !== opener || !COLLECT_ORIGIN.test(e.origin)) return;
+        if (!e.data || e.data.type !== 'arcaea-data') return;
+        done = true;
+        clearInterval(timer);
+        opener.postMessage({ type: 'arcaea-received' }, e.origin);
+        if (importRaw(e.data.data)) status.textContent = "📡 Arcaea Online から受け取りました。" + status.textContent.replace(/^✅ /, '');
+    });
+    ping();
 }
 
 function buildViews() {
@@ -191,6 +220,10 @@ function buildViews() {
                 const btn = e.target.closest('.btn-export');
                 if (btn) exportImage(btn.dataset.area, btn.dataset.filename, btn, playerProfile);
                 if (e.target.closest('.btn-cover-toggle')) setCoversOff(!isCoversOff());
+                // スマホ幅のリスト: レベル帯のタブと、画像のプレビュー
+                if (handleListTab(e, f.id)) return;
+                const preview = e.target.closest('.btn-preview');
+                if (preview) openPreview(preview.dataset.area, preview.dataset.filename, preview.dataset.label, playerProfile);
             });
             view.addEventListener('error', handleCoverError, true);
         }
@@ -230,7 +263,8 @@ async function main() {
     });
     menuItems.addEventListener('change', () => setMenuOpen(false));
     document.getElementById('btn-backup').addEventListener('click', () => {
-        if (currentData) exportJson(currentData);
+        // バックアップには成長記録の履歴も入れる
+        if (currentData) exportJson({ ...currentData, history: loadHistory() });
     });
     const jsonInput = document.getElementById('json-input');
     const masterStatus = document.getElementById('master-status');
@@ -250,7 +284,12 @@ async function main() {
 
     // 保存済みデータがあれば、ファイルを選ばずにツールを開けるようにしておく
     const savedData = loadSavedData();
-    if (savedData) showData(savedData, savedData.savedAt);
+    if (savedData) {
+        // 成長記録の機能より前から使っている人は、保存済みのデータで履歴を始める
+        if (!loadHistory()) recordHistory(savedData);
+        showData(savedData, savedData.savedAt);
+    }
+    listenForCollect();
 }
 
 main();
