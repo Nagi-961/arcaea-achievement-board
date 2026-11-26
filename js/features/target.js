@@ -1,6 +1,7 @@
 // スコア目標計算機: 目標スコアと内部精度の失点から、許容できる FAR / LOST を計算する
 // all.json がなくても master.csv のノーツ数だけで使える。データがあれば自己ベストとの差も出す
 import { escapeHtml, compareTitle, diffColors, levelSortKey } from '../board.js';
+import { calcScore } from '../calc.js';
 
 // まずはノーツ数がそろっている FTR / BYD / INS / ETR に限定する
 const DIFFS = [
@@ -38,13 +39,6 @@ const keyOf = c => c.song_id + '_' + c.difficulty;
 const fmt = n => n.toLocaleString('ja-JP');
 
 // ---- 計算 ----
-// スコア = floor(10,000,000 × (2×PURE + FAR) / (2×ノーツ数)) + 光った PURE の数
-// 内部精度の失点 = 光らなかった PURE の数（FAR / LOST になったノーツは最初から光らない）
-export function calcScore(notes, far, lost, loss) {
-    const pure = notes - far - lost;
-    return Math.floor(10000000 * (2 * pure + far) / (2 * notes)) + Math.max(0, pure - loss);
-}
-
 function targetScore() {
     if (state.target.score != null) return state.target.score;
     return GRADE_TARGETS.find(g => g.key === state.target.grade).score;
