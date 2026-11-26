@@ -1,16 +1,19 @@
-// 実績ランク表・スコア特化表で共通の、集計表とジャケットタイルの描画
+// 実績表(ランク表示 / スコア表示)の、集計表とジャケットタイルの描画
 // PC幅では画像レイアウト(capture-area)をそのまま見せ、スマホ幅ではジャケット付きリストを見せる。
 // スマホで画像を作るときは preview.js が capture-area をプレビューに移して表示・保存する
+import { icon, iconLabel } from './icons.js';
 import { playPotential } from './calc.js';
 
 export const diffColors = { "FTR": "#9932cc", "ETR": "#d8bfd8", "BYD": "#dc143c", "INS": "#1e90ff", "PST": "#4fc3f7", "PRS": "#81c784" };
+// ランクの色。値は css/style.css のテーマごとの変数(ダーク / ライトで切り替わる)
+const BAR = 'var(--tile-bar-bg)';
 const gradeColors = {
-    "MAX": { color: "#ffdf00", bg: "#000000", shadow: "0 0 8px #ffdf00" },
-    "PM":  { color: "#ffd700", bg: "#000000", shadow: "0 0 5px #ffd700" },
-    "EX+": { color: "#00ffff", bg: "#000000", shadow: "0 0 4px #00ffff" },
-    "EX":  { color: "#32cd32", bg: "#000000", shadow: "0 0 4px #32cd32" },
-    "AA":  { color: "#ff4c4c", bg: "#000000", shadow: "none" },
-    "NO PLAY": { color: "#777777", bg: "#000000", shadow: "none" }
+    "MAX": { color: "var(--g-max)", bg: BAR, shadow: "var(--g-max-glow)" },
+    "PM":  { color: "var(--g-pm)", bg: BAR, shadow: "var(--g-pm-glow)" },
+    "EX+": { color: "var(--g-exp)", bg: BAR, shadow: "var(--g-exp-glow)" },
+    "EX":  { color: "var(--g-ex)", bg: BAR, shadow: "var(--g-ex-glow)" },
+    "AA":  { color: "var(--g-aa)", bg: BAR, shadow: "none" },
+    "NO PLAY": { color: "var(--g-np)", bg: BAR, shadow: "none" }
 };
 
 // 画像1枚ごとの区切り。levels が null のものは残り全部(Level 10)
@@ -43,7 +46,7 @@ export function coverSrc(songId, difficulty) {
     return `${COVER_DIR}/default.png`;
 }
 
-// ジャケットオフ（黒地に曲名＋ランク/スコア）の設定。実績ランク表とスコア特化表で共有し、ブラウザに覚えさせる
+// ジャケットオフ（黒地に曲名＋ランク/スコア）の設定。ランク表示とスコア表示で共有し、ブラウザに覚えさせる
 const COVERS_OFF_KEY = 'arcaea_covers_off_v1';
 
 export function isCoversOff() {
@@ -54,7 +57,7 @@ export function setCoversOff(off) {
     try { localStorage.setItem(COVERS_OFF_KEY, off ? '1' : '0'); } catch { /* 保存できなくても表示は切り替える */ }
     document.documentElement.classList.toggle('covers-off', off);
     document.querySelectorAll('.btn-cover-toggle').forEach(b => {
-        b.textContent = coverToggleLabel(off);
+        b.innerHTML = coverToggleLabel(off);
         b.setAttribute('aria-pressed', String(off));
     });
 }
@@ -100,7 +103,7 @@ function titleFontSize(title) {
 }
 
 export function coverToggleLabel(off) {
-    return off ? '⬛ ジャケット: OFF（曲名表示）' : '🖼 ジャケット: ON';
+    return off ? iconLabel('imageOff', 'ジャケット: OFF（曲名表示）') : iconLabel('image', 'ジャケット: ON');
 }
 
 export function escapeHtml(value) {
@@ -146,21 +149,21 @@ function summaryTableHtml(songs) {
         else if (g === "NO PLAY") row["NP"]++;
     });
 
-    const fmt = v => v > 0 ? v : '<span style="color:#444;">-</span>';
-    let html = `<table class="summary-table"><tr><th>Lv</th><th style="color:#ffdf00;">MAX</th><th style="color:#ffd700;">PM</th><th style="color:#00ffff;">EX+</th><th style="color:#32cd32;">EX</th><th style="color:#ff4c4c;">AA</th><th style="color:#ff4c4c;">A</th><th style="color:#ff4c4c;">B-D</th><th style="color:#777777;">NP</th><th>Total</th><th>EX+↑</th></tr>`;
+    const fmt = v => v > 0 ? v : '<span style="color:var(--g-zero);">-</span>';
+    let html = `<table class="summary-table"><tr><th>Lv</th><th style="color:var(--g-max);">MAX</th><th style="color:var(--g-pm);">PM</th><th style="color:var(--g-exp);">EX+</th><th style="color:var(--g-ex);">EX</th><th style="color:var(--g-aa);">AA</th><th style="color:var(--g-aa);">A</th><th style="color:var(--g-aa);">B-D</th><th style="color:var(--g-np);">NP</th><th>Total</th><th>EX+↑</th></tr>`;
     Object.keys(summaryData).sort((a, b) => levelSortKey(a) - levelSortKey(b)).forEach(lvl => {
         const row = summaryData[lvl];
         const total = row.Total;
         const exPlus = row.MAX + row.PM + row["EX+"];
         const rate = total > 0 ? (exPlus / total * 100).toFixed(1) : 0;
-        html += `<tr><td class="lvl-col">${lvl}</td><td style="color:#ffdf00; text-shadow:0 0 5px #ffdf00;">${fmt(row.MAX)}</td><td style="color:#ffd700;">${fmt(row.PM)}</td><td style="color:#00ffff;">${fmt(row['EX+'])}</td><td style="color:#32cd32;">${fmt(row.EX)}</td><td style="color:#ff4c4c;">${fmt(row.AA)}</td><td style="color:#ff4c4c;">${fmt(row.A)}</td><td style="color:#ff4c4c;">${fmt(row['B-D'])}</td><td style="color:#777777;">${fmt(row.NP)}</td><td>${total}</td><td class="rate">${rate}%</td></tr>`;
+        html += `<tr><td class="lvl-col">${lvl}</td><td style="color:var(--g-max); text-shadow:var(--g-max-glow);">${fmt(row.MAX)}</td><td style="color:var(--g-pm);">${fmt(row.PM)}</td><td style="color:var(--g-exp);">${fmt(row['EX+'])}</td><td style="color:var(--g-ex);">${fmt(row.EX)}</td><td style="color:var(--g-aa);">${fmt(row.AA)}</td><td style="color:var(--g-aa);">${fmt(row.A)}</td><td style="color:var(--g-aa);">${fmt(row['B-D'])}</td><td style="color:var(--g-np);">${fmt(row.NP)}</td><td>${total}</td><td class="rate">${rate}%</td></tr>`;
     });
     return html + `</table>`;
 }
 
-function tileHtml(song, feature) {
+function tileHtml(song, style) {
     const gColor = gradeColor(song.grade);
-    const dColor = diffColors[song.difficulty] || "#444";
+    const dColor = diffColors[song.difficulty] || "var(--tile-border)";
     const noplayCls = song.scoreVal === 0 ? " noplay" : "";
     const title = escapeHtml(song.title);
     // 一覧と食い違って見つからなければ、handleCoverError が {song_id}.png → default.png の順に差し替える
@@ -168,8 +171,8 @@ function tileHtml(song, feature) {
     return `
         <div class="tile${noplayCls}" style="border-color: ${dColor};">
             <img src="${src}" class="jacket" alt="${title}" data-song-id="${escapeHtml(song.song_id)}">
-            ${feature.tileBar(song, gColor)}
-            <div class="overlay"><div class="o-title" style="--title-size:${titleFontSize(song.title ?? '')}px;">${title}</div>${feature.overlayInfo(song, gColor)}</div>
+            ${style.tileBar(song, gColor)}
+            <div class="overlay"><div class="o-title" style="--title-size:${titleFontSize(song.title ?? '')}px;">${title}</div>${style.overlayInfo(song, gColor)}</div>
         </div>`;
 }
 
@@ -207,8 +210,8 @@ function listRowHtml(song) {
     const title = escapeHtml(song.title);
     const src = coverSrc(song.song_id, song.difficulty);
     const score = song.scoreVal > 0 ? song.scoreVal.toLocaleString() : '---';
-    // タップで開く詳細は <details> に任せる（JS 不要）
-    return `<details class="bl-row${song.scoreVal === 0 ? ' noplay' : ''}">
+    // タップで開く詳細は <details>。開閉のスライドは motion.js が付ける
+    return `<details class="bl-row slide${song.scoreVal === 0 ? ' noplay' : ''}">
             <summary>
                 <img src="${src}" class="jacket bl-jacket" alt="" loading="lazy" data-song-id="${escapeHtml(song.song_id)}" style="border-color:${diffColors[song.difficulty] || '#444'};">
                 <span class="bl-main">
@@ -220,17 +223,17 @@ function listRowHtml(song) {
                     <span class="bl-score">${score}</span>
                 </span>
             </summary>
-            ${listDetailHtml(song)}
+            <div class="slide-body">${listDetailHtml(song)}</div>
         </details>`;
 }
 
-function listSectionHtml(sec, grouped, feature, areaId, active) {
+function listSectionHtml(sec, grouped, style, areaId, active) {
     const groups = Object.keys(grouped).map(Number).sort((a, b) => b - a).map(c => {
-        const rows = grouped[c].slice().sort(feature.sortSongs).map(listRowHtml).join('');
+        const rows = grouped[c].slice().sort(style.sortSongs).map(listRowHtml).join('');
         return `<div class="bl-group"><h3 class="bl-cc">CC ${c.toFixed(1)}<span>${grouped[c].length} 譜面</span></h3>${rows}</div>`;
     }).join('');
     return `<div class="bl-section" data-sec="${sec.key}"${active ? '' : ' hidden'}>
-            <button class="btn-preview" type="button" data-area="${areaId}" data-label="${sec.label}${feature.sectionSuffix}" data-filename="arcaea_${feature.id}_${sec.key}.png">📷 ${sec.label} の画像を作る</button>
+            <button class="btn-preview" type="button" data-area="${areaId}" data-label="${sec.label}${style.sectionSuffix}" data-filename="arcaea_${style.key}_${sec.key}.png">${iconLabel('camera', `${sec.label} の画像を作る`)}</button>
             ${groups}
         </div>`;
 }
@@ -246,11 +249,25 @@ export function handleListTab(e, featureId) {
     return true;
 }
 
-// feature: { id, heading, sectionSuffix, sortSongs, tileBar, overlayInfo }
+// 表示の切り替え(ランク / スコア)を押したら、その表示に切り替えて true。main.js のクリック処理から呼び、描き直してもらう
+export function handleStyleSwitch(e, feature) {
+    const btn = e.target.closest('.board-style [data-style]');
+    if (!btn || btn.classList.contains('active')) return Boolean(btn);
+    feature.setStyle(btn.dataset.style);
+    return true;
+}
+
+// feature: { id, style, styles }。style は今の表示 { key, label, icon, heading, sectionSuffix, sortSongs, tileBar, overlayInfo }
 export function renderBoard(songs, profile, feature) {
+    const style = feature.style;
     const summaryHtml = summaryTableHtml(songs);
     const off = isCoversOff();
-    let areasHtml = `<button class="btn-cover-toggle" type="button" aria-pressed="${off}">${coverToggleLabel(off)}</button>`;
+    const styleChips = feature.styles.map(s =>
+        `<button class="chip${s.key === style.key ? ' active' : ''}" type="button" data-style="${s.key}" aria-pressed="${s.key === style.key}">${icon(s.icon)}${s.label}</button>`).join('');
+    let areasHtml = `<div class="board-controls">
+            <div class="chips board-style" role="group" aria-label="表示">${styleChips}</div>
+            <button class="btn-cover-toggle" type="button" aria-pressed="${off}">${coverToggleLabel(off)}</button>
+        </div>`;
     let tabsHtml = '', listHtml = '';
     const available = SECTIONS.filter(sec => songs.some(song => inSection(sec, song)));
     if (!available.some(sec => sec.key === activeSection[feature.id])) activeSection[feature.id] = available[0]?.key;
@@ -266,29 +283,31 @@ export function renderBoard(songs, profile, feature) {
 
         const active = sec.key === activeSection[feature.id];
         tabsHtml += `<button class="chip bl-tab${active ? ' active' : ''}" type="button" data-sec="${sec.key}">${sec.label}</button>`;
-        listHtml += listSectionHtml(sec, grouped, feature, areaId, active);
+        listHtml += listSectionHtml(sec, grouped, style, areaId, active);
 
         // 保存ボタンは画像に写らないよう、保存範囲(capture-area)の外の真上に置く
         areasHtml += `<div class="board-section">
-                        <button class="btn-export" data-area="${areaId}" data-filename="arcaea_${feature.id}_${sec.key}.png">📷 ${sec.label} を保存</button>
+                        <button class="btn-export" data-area="${areaId}" data-filename="arcaea_${style.key}_${sec.key}.png">${iconLabel('camera', `${sec.label} を保存`)}</button>
                         <div id="${areaId}" class="capture-area">
                         <div class="header-container">
                             <div>
-                                <h1>${feature.heading} <span class="title-sub">[${sec.label}${feature.sectionSuffix}]</span></h1>
+                                <h1>${style.heading} <span class="title-sub">[${sec.label}${style.sectionSuffix}]</span></h1>
                                 ${profileHtml(profile)}
                             </div>
                             ${summaryHtml}
                         </div>`;
+        // 定数ごとのかたまりを横に流して折り返す。譜面の少ない定数は横に詰まり、多い定数は1行まるごと使う
+        areasHtml += `<div class="constant-flow">`;
         Object.keys(grouped).map(Number).sort((a, b) => b - a).forEach(c => {
             areasHtml += `<div class="constant-section"><div class="constant-header">CC: ${c.toFixed(1)}</div><div class="tile-container">`;
-            grouped[c].sort(feature.sortSongs).forEach(song => { areasHtml += tileHtml(song, feature); });
+            grouped[c].sort(style.sortSongs).forEach(song => { areasHtml += tileHtml(song, style); });
             areasHtml += `</div></div>`;
         });
-        areasHtml += `</div></div>`;
+        areasHtml += `</div></div></div>`;
     });
 
     return `${areasHtml}
-        <div class="board-list">
+        <div class="board-list style-${style.key}">
             <div class="chips bl-tabs">${tabsHtml}</div>
             ${listHtml}
         </div>`;

@@ -1,4 +1,5 @@
 // 表を画像として保存する(html2canvas は index.html で読み込み済み)
+import { iconLabel } from './icons.js';
 
 // 保存ファイル名の頭につける日付（261031 形式）。データ収集日を優先し、なければ今日の日付
 function fileDatePrefix(profile) {
@@ -13,13 +14,13 @@ function showModal(imgSrc) {
     modal.className = 'export-modal';
 
     const msg = document.createElement('p');
-    msg.textContent = "⬇️ 画像を長押しして「写真に追加」で保存 ⬇️";
+    msg.textContent = "画像を長押しして「写真に追加」で保存";
 
     const img = document.createElement('img');
     img.src = imgSrc;
 
     const closeBtn = document.createElement('button');
-    closeBtn.textContent = "❌ 閉じる";
+    closeBtn.innerHTML = iconLabel('close', '閉じる');
     closeBtn.addEventListener('click', () => modal.remove());
 
     modal.append(msg, img, closeBtn);
@@ -50,8 +51,8 @@ export async function exportJson(data) {
 }
 
 export async function exportImage(areaId, filename, btn, profile) {
-    const originalText = btn.textContent;
-    btn.textContent = "⏳ 生成中...";
+    const originalHtml = btn.innerHTML;
+    btn.textContent = "生成中...";
     btn.classList.add('busy');
     const element = document.getElementById(areaId);
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -59,7 +60,9 @@ export async function exportImage(areaId, filename, btn, profile) {
     try {
         // 見出しの Web フォントが読み込み終わってから撮る
         await document.fonts.ready;
-        const canvas = await html2canvas(element, { backgroundColor: '#0e0e24', scale: 2.5, useCORS: true });
+        // 角丸の外側の下地。テーマの保存範囲の色に合わせる
+        const backgroundColor = getComputedStyle(element).getPropertyValue('--capture-solid').trim() || null;
+        const canvas = await html2canvas(element, { backgroundColor, scale: 2.5, useCORS: true });
         if (isIOS) {
             showModal(canvas.toDataURL('image/png'));
         } else {
@@ -75,7 +78,7 @@ export async function exportImage(areaId, filename, btn, profile) {
     } catch (err) {
         alert("画像生成中にエラーが発生しました。\n" + err);
     } finally {
-        btn.textContent = originalText;
+        btn.innerHTML = originalHtml;
         btn.classList.remove('busy');
     }
 }

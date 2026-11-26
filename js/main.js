@@ -2,11 +2,12 @@ import { loadMaster } from './master.js';
 import { normalizeData, mergeData, saveData, loadSavedData } from './storage.js';
 import { exportImage, exportJson } from './export.js';
 import { loadHistory, recordHistory, importHistory } from './history.js';
-import { renderBoard, handleCoverError, isCoversOff, setCoversOff, handleListTab, loadCoverList } from './board.js';
+import { renderBoard, handleCoverError, isCoversOff, setCoversOff, handleListTab, handleStyleSwitch, loadCoverList } from './board.js';
 import { openPreview } from './preview.js';
 import { gradeOfRecord } from './calc.js';
-import rank from './features/rank.js';
-import score from './features/score.js';
+import { icon, iconLabel, mountIcons } from './icons.js';
+import { enableDetailsSlide } from './motion.js';
+import achievement from './features/achievement.js';
 import summary from './features/summary.js';
 import growth from './features/growth.js';
 import target from './features/target.js';
@@ -17,7 +18,7 @@ import howto, { mountHowto } from './features/howto.js';
 // mount を持たない機能は表(renderBoard)として描画する
 // description を持つ機能はトップページにツールとして並べる
 // needsData: false の機能は all.json なしでも開ける。setMaster(楽曲マスタ) はマスタの読み込み後に呼ばれる
-const FEATURES = [rank, score, summary, growth, target, howto];
+const FEATURES = [achievement, summary, growth, target, howto];
 const BOARD_FEATURES = FEATURES.filter(f => !f.mount);
 const TOOL_FEATURES = FEATURES.filter(f => f.description);
 // ジャケットの表に載せるのは定数10.0以上の譜面
@@ -28,9 +29,17 @@ const diffMap = { 0: "PST", 1: "PRS", 2: "FTR", 3: "BYD", 4: "ETR" };
 let masterData = [];
 let playerProfile = null;
 let currentData = null;
+// 表(renderBoard)に載せる譜面。表示を切り替えたときの描き直しに使う
+let boardSongs = [];
 let currentMode = null;
 // データ読み込み前に選んだツール。読み込みが終わったらそれを開く
 let pendingMode = null;
+
+// 状態メッセージ: 先頭にアイコン、本文は文字として入れる(プレイヤー名を含むので innerHTML にしない)
+function setStatus(el, iconName, text) {
+    el.innerHTML = icon(iconName, 'status-ico');
+    el.append(text);
+}
 
 // マスタの各譜面にスコアとランクを付ける
 function mergeScores(scoreList) {
@@ -61,13 +70,16 @@ function switchMode(mode) {
         document.getElementById(`view-${f.id}`).style.display = f.id === mode ? 'block' : 'none';
         document.getElementById(`tab-${f.id}`).classList.toggle('active', f.id === mode);
     });
-    document.getElementById('menu-current').textContent = FEATURES.find(f => f.id === mode)?.label || '';
+    const current = FEATURES.find(f => f.id === mode);
+    document.getElementById('menu-current').innerHTML = current ? iconLabel(current.icon, current.label) : '';
 }
 
 // スマホ幅の ☰ メニュー
 function setMenuOpen(open) {
     document.getElementById('tab-menu').classList.toggle('open', open);
     document.getElementById('menu-toggle').setAttribute('aria-expanded', String(open));
+    // ドロワーを開いている間は後ろのページをスクロールさせない
+    document.body.classList.toggle('menu-open', open);
 }
 
 function showHome() {
@@ -93,9 +105,13 @@ function selectTool(mode) {
     }
     pendingMode = mode;
     const panel = document.getElementById('data-panel');
-    document.getElementById('home-data-status').textContent = "⚠️ 先に all.json を選択してください。読み込むとツールが開きます。";
+    setStatus(document.getElementById('home-data-status'), 'alert', "先に all.json を選択してください。読み込むとツールが開きます。");
     panel.classList.add('attention');
     panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function renderBoardView(f) {
+    document.getElementById(`view-${f.id}`).innerHTML = renderBoard(boardSongs, playerProfile, f);
 }
 
 function showData(data, savedAt) {
@@ -104,19 +120,17 @@ function showData(data, savedAt) {
     playerProfile = data.profile;
 
     const allSongs = mergeScores(data.scores);
-    const boardSongs = allSongs.filter(m => m.constant >= MIN_CONSTANT);
-    BOARD_FEATURES.forEach(f => {
-        document.getElementById(`view-${f.id}`).innerHTML = renderBoard(boardSongs, playerProfile, f);
-    });
+    boardSongs = allSongs.filter(m => m.constant >= MIN_CONSTANT);
+    BOARD_FEATURES.forEach(renderBoardView);
     FEATURES.forEach(f => f.update?.(allSongs, playerProfile));
 
     const status = savedAt
         ? "最終更新: " + (collectedAt || new Date(savedAt).toLocaleString('ja-JP'))
-        : "⚠️ ブラウザに未保存";
+        : "ブラウザに未保存";
     document.getElementById('data-status').textContent = status;
     const name = data.profile && data.profile.name;
-    document.getElementById('home-data-status').textContent =
-        `✅ ${name ? name + " さんの" : ""}データを読み込み済み（${status}）。ツールを選んでください。`;
+    setStatus(document.getElementById('home-data-status'), 'check',
+        `${name ? name + " さんの" : ""}データを読み込み済み（${status}）。ツールを選んでください。`);
     document.getElementById('data-panel').classList.remove('attention');
     // 更新時は開いているタブをそのまま維持する
     if (currentMode) switchMode(currentMode);
@@ -173,17 +187,17 @@ function listenForCollect() {
     const opener = window.opener;
     const status = document.getElementById('home-data-status');
     if (!opener) {
-        status.textContent = "⚠️ Arcaea Online のタブが見つかりませんでした。もう一度「🌐 サイトに送る」を押すか、ファイルで読み込んでください。";
+        setStatus(status, 'alert', "Arcaea Online のタブが見つかりませんでした。もう一度「サイトに送る」を押すか、ファイルで読み込んでください。");
         return;
     }
-    status.textContent = "📡 Arcaea Online からデータを受け取っています...";
+    setStatus(status, 'download', "Arcaea Online からデータを受け取っています...");
     let done = false;
     // 合図自体はデータを含まないので、送り先を限定しない(Arcaea Online のアドレスが変わっても動くように)
     const ping = () => { try { opener.postMessage({ type: 'arcaea-ready' }, '*'); } catch (err) { /* タブが閉じられた */ } };
     const timer = setInterval(() => { if (!done) ping(); }, 700);
     setTimeout(() => {
         clearInterval(timer);
-        if (!done) status.textContent = "⚠️ データを受け取れませんでした。Arcaea Online のタブで「🌐 サイトに送る」をもう一度押すか、ファイルで読み込んでください。";
+        if (!done) setStatus(status, 'alert', "データを受け取れませんでした。Arcaea Online のタブで「サイトに送る」をもう一度押すか、ファイルで読み込んでください。");
     }, 30000);
     window.addEventListener('message', e => {
         if (done || e.source !== opener || !COLLECT_ORIGIN.test(e.origin)) return;
@@ -191,7 +205,7 @@ function listenForCollect() {
         done = true;
         clearInterval(timer);
         opener.postMessage({ type: 'arcaea-received' }, e.origin);
-        if (importRaw(e.data.data)) status.textContent = "📡 Arcaea Online から受け取りました。" + status.textContent.replace(/^✅ /, '');
+        if (importRaw(e.data.data)) setStatus(status, 'check', "Arcaea Online から受け取りました。" + status.textContent);
     });
     ping();
 }
@@ -206,7 +220,7 @@ function buildViews() {
         const tab = document.createElement('button');
         tab.id = `tab-${f.id}`;
         tab.className = 'tab-btn';
-        tab.textContent = f.label;
+        tab.innerHTML = iconLabel(f.icon, f.label);
         tab.addEventListener('click', () => switchMode(f.id));
         tabButtons.appendChild(tab);
 
@@ -220,6 +234,8 @@ function buildViews() {
                 const btn = e.target.closest('.btn-export');
                 if (btn) exportImage(btn.dataset.area, btn.dataset.filename, btn, playerProfile);
                 if (e.target.closest('.btn-cover-toggle')) setCoversOff(!isCoversOff());
+                // ランク表示 / スコア表示の切り替え
+                if (handleStyleSwitch(e, f)) { renderBoardView(f); return; }
                 // スマホ幅のリスト: レベル帯のタブと、画像のプレビュー
                 if (handleListTab(e, f.id)) return;
                 const preview = e.target.closest('.btn-preview');
@@ -239,17 +255,23 @@ function buildToolCards() {
         card.className = 'tool-card';
         const title = document.createElement('span');
         title.className = 'tool-card-title';
-        title.textContent = f.label;
+        title.innerHTML = iconLabel(f.icon, f.label);
+        // 背景に大きく薄く透かすアイコン
+        const mark = document.createElement('span');
+        mark.className = 'tool-card-mark';
+        mark.innerHTML = icon(f.icon);
         const desc = document.createElement('span');
         desc.className = 'tool-card-desc';
         desc.textContent = f.description;
-        card.append(title, desc);
+        card.append(mark, title, desc);
         card.addEventListener('click', () => selectTool(f.id));
         cards.appendChild(card);
     });
 }
 
 async function main() {
+    mountIcons();
+    enableDetailsSlide();
     buildViews();
     buildToolCards();
     mountHowto(document.getElementById('upload-howto'));
@@ -262,6 +284,8 @@ async function main() {
         if (e.target.closest('button')) setMenuOpen(false);
     });
     menuItems.addEventListener('change', () => setMenuOpen(false));
+    document.getElementById('menu-backdrop').addEventListener('click', () => setMenuOpen(false));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') setMenuOpen(false); });
     document.getElementById('btn-backup').addEventListener('click', () => {
         // バックアップには成長記録の履歴も入れる
         if (currentData) exportJson({ ...currentData, history: loadHistory() });
@@ -273,7 +297,7 @@ async function main() {
         [masterData] = await Promise.all([loadMaster(), loadCoverList()]);
     } catch (err) {
         console.error(err);
-        masterStatus.textContent = "❌ 楽曲データ(data/master.csv)を読み込めませんでした。";
+        setStatus(masterStatus, 'alert', "楽曲データ(data/master.csv)を読み込めませんでした。");
         masterStatus.classList.add('error');
         return;
     }

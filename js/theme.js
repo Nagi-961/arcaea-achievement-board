@@ -17,8 +17,8 @@
         const btn = document.getElementById('theme-toggle');
         if (!btn) return;
         const sync = () => {
+            // アイコン(太陽 / 月)は CSS がテーマに合わせて片方だけ見せる
             const light = root.dataset.theme === 'light';
-            btn.textContent = light ? '☾' : '☀';
             const label = light ? 'ダークモードにする' : 'ライトモードにする';
             btn.setAttribute('aria-label', label);
             btn.title = label;
@@ -29,12 +29,14 @@
             try { localStorage.setItem(KEY, next); } catch (err) { /* 保存できなくても切り替えはする */ }
             root.dataset.theme = next;
             sync();
+            document.dispatchEvent(new Event('themechange'));
         });
         // 自分で選んでいなければ、OS の設定の変更に追従する
         media.addEventListener('change', () => {
             if (saved()) return;
             root.dataset.theme = preferred();
             sync();
+            document.dispatchEvent(new Event('themechange'));
         });
     });
 })();
