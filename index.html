@@ -4,15 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Arcaea Multi Dashboard</title>
+    <meta name="color-scheme" content="dark light">
+    <!-- テーマはCSSより先に決める（ちらつき防止） -->
+    <script src="js/theme.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Rajdhani:wght@500;600;700&display=swap">
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script type="module" src="js/main.js"></script>
 </head>
 <body>
 
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="テーマを切り替える">☀</button>
+
     <!-- トップページ。ツールを選ぶと app-content の各ビューに切り替わる -->
     <div id="home">
         <header class="home-hero">
+            <p class="home-eyebrow">Arcaea Fan Tool</p>
             <h1>Arcaea Multi Dashboard</h1>
             <p>ようこそ！ここは Arcaea のプレイデータを活用した、いろいろなツールを作っていく試作場です。<br>
                 Arcaea Online から取得したスコアを読み込んで、表や画像にして楽しめます。</p>
