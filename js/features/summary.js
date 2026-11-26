@@ -1,24 +1,29 @@
 // 達成状況表: 難易度・レベルで絞り込んで、ランクごとの達成数を共有しやすい表にする
+// PC幅では保存用の表をそのまま見せる。スマホ幅ではレベルごとのカード(積み上げバー、タップで内訳)を見せ、
+// 保存は「画像を作る」のプレビュー(preview.js)から行う
+import { icon, iconLabel } from '../icons.js';
 import { escapeHtml, levelSortKey, profileHtml } from '../board.js';
 import { exportImage } from '../export.js';
+import { openPreview } from '../preview.js';
 
 const GRADES = [
-    { key: 'MAX', label: '理論値', color: '#ffdf00', bar: '#ffdf00', glow: true },
-    { key: 'PM', label: 'PM', color: '#ffd700', bar: '#c9a227' },
-    { key: 'EX+', label: 'EX+', color: '#00ffff', bar: '#00bcd4' },
-    { key: 'EX', label: 'EX', color: '#32cd32', bar: '#32cd32' },
-    { key: 'AA', label: 'AA', color: '#ff4c4c', bar: '#ff4c4c' },
-    { key: 'A', label: 'A', color: '#ff8a65', bar: '#ff8a65' },
-    { key: 'B-D', label: 'B〜D', color: '#bcaaa4', bar: '#8d6e63' },
-    { key: 'NP', label: '未プレイ', color: '#777777', bar: '#333333' },
+    // 色は css/style.css のテーマごとの変数
+    { key: 'MAX', label: '理論値', color: 'var(--g-max)', bar: 'var(--g-max)', glow: true },
+    { key: 'PM', label: 'PM', color: 'var(--g-pm)', bar: 'var(--g-pm-bar)' },
+    { key: 'EX+', label: 'EX+', color: 'var(--g-exp)', bar: 'var(--g-exp-bar)' },
+    { key: 'EX', label: 'EX', color: 'var(--g-ex)', bar: 'var(--g-ex)' },
+    { key: 'AA', label: 'AA', color: 'var(--g-aa)', bar: 'var(--g-aa)' },
+    { key: 'A', label: 'A', color: 'var(--g-a)', bar: 'var(--g-a)' },
+    { key: 'B-D', label: 'B〜D', color: 'var(--g-bd)', bar: 'var(--g-bd-bar)' },
+    { key: 'NP', label: '未プレイ', color: 'var(--g-np)', bar: 'var(--g-np-bar)' },
 ];
 // INS は BYD と同じ枠で数える
 const DIFFS = [
-    { key: 'PST', label: 'PST', color: '#4fc3f7', match: ['PST'] },
-    { key: 'PRS', label: 'PRS', color: '#81c784', match: ['PRS'] },
-    { key: 'FTR', label: 'FTR', color: '#9932cc', match: ['FTR'] },
-    { key: 'BYD', label: 'BYD/INS', color: '#dc143c', match: ['BYD', 'INS'] },
-    { key: 'ETR', label: 'ETR', color: '#d8bfd8', match: ['ETR'] },
+    { key: 'PST', label: 'PST', color: 'var(--d-PST)', match: ['PST'] },
+    { key: 'PRS', label: 'PRS', color: 'var(--d-PRS)', match: ['PRS'] },
+    { key: 'FTR', label: 'FTR', color: 'var(--d-FTR)', match: ['FTR'] },
+    { key: 'BYD', label: 'BYD/INS', color: 'var(--d-BYD)', match: ['BYD', 'INS'] },
+    { key: 'ETR', label: 'ETR', color: 'var(--d-ETR)', match: ['ETR'] },
 ];
 const AREA_ID = 'summary-area';
 
@@ -68,10 +73,70 @@ function buildRows(songs) {
             .filter(r => r.total > 0);
     }
     // 高いレベルを上にする
-    return levelsOf(songs).reverse().map(lv => countRow(`Lv ${lv}`, '#ffffff', songs.filter(s => s.level === lv)));
+    return levelsOf(songs).reverse().map(lv => countRow(`Lv ${lv}`, 'var(--text)', songs.filter(s => s.level === lv)));
 }
 
 const pct = (n, total) => total > 0 ? (n / total * 100).toFixed(1) + '%' : '-';
+
+function barHtml(row) {
+    return GRADES.map(g => row.counts[g.key] > 0
+        ? `<span style="flex:${row.counts[g.key]};background:${g.bar};"></span>` : '').join('');
+}
+
+// ---- スマホ幅のカード ----
+// 内訳: ランクごとの数(0 の欄も薄く出して、並びを揃える)
+function cardCountsHtml(row) {
+    return `<dl class="sm-counts">${GRADES.map(g => {
+        const n = row.counts[g.key];
+        return `<div${n > 0 ? '' : ' class="zero"'}><dt style="color:${g.color};">${g.label}</dt><dd>${n}</dd></div>`;
+    }).join('')}</dl>`;
+}
+
+function rates(row) {
+    const pmUp = row.counts.MAX + row.counts.PM;
+    return { pm: pct(pmUp, row.total), exPlus: pct(pmUp + row.counts['EX+'], row.total) };
+}
+
+function cardHtml(row) {
+    const r = rates(row);
+    return `<details class="sm-card slide">
+            <summary>
+                <span class="sm-card-head">
+                    <span class="sm-label" style="color:${row.color};">${escapeHtml(row.label)}</span>
+                    <span class="sm-rate"><small>EX+以上</small>${r.exPlus}</span>
+                    ${icon('chevron', 'sm-chev')}
+                </span>
+                <span class="sum-bar">${barHtml(row)}</span>
+            </summary>
+            <div class="slide-body"><div class="sm-detail">
+                ${cardCountsHtml(row)}
+                <p class="sm-facts"><span>合計 <b>${row.total}</b></span><span>PM以上 <b style="color:var(--g-pm);">${r.pm}</b></span></p>
+            </div></div>
+        </details>`;
+}
+
+function mobileHtml(rows, total) {
+    const r = rates(total);
+    return `<div class="sm-view">
+            <button class="btn-preview sm-preview" type="button">${iconLabel('camera', '画像を作る')}</button>
+            <p class="sm-cond">${escapeHtml(conditionText())}</p>
+            <div class="sm-total">
+                <div class="sm-total-nums">
+                    <div><small>合計</small><b>${total.total}</b></div>
+                    <div><small>PM以上</small><b style="color:var(--g-pm);">${r.pm}</b></div>
+                    <div><small>EX+以上</small><b style="color:var(--g-exp);">${r.exPlus}</b></div>
+                </div>
+                <div class="sum-bar">${barHtml(total)}</div>
+                ${cardCountsHtml(total)}
+            </div>
+            ${rows.map(cardHtml).join('')}
+            <div class="summary-legend">${legendHtml()}</div>
+        </div>`;
+}
+
+function legendHtml() {
+    return GRADES.map(g => `<span><i style="background:${g.bar};"></i>${g.label}</span>`).join('');
+}
 
 function rowHtml(row, isTotal) {
     const c = row.counts;
@@ -79,17 +144,16 @@ function rowHtml(row, isTotal) {
     const exPlusUp = pmUp + c['EX+'];
     const cells = GRADES.map(g => {
         const n = c[g.key];
-        const style = n > 0 ? `color:${g.color};${g.glow ? `text-shadow:0 0 6px ${g.color};` : ''}` : 'color:#444;';
+        const style = n > 0 ? `color:${g.color};${g.glow ? 'text-shadow:var(--g-max-glow);' : ''}` : 'color:var(--g-zero);';
         return `<td style="${style}">${n > 0 ? n : '-'}</td>`;
     }).join('');
-    const bar = GRADES.map(g => row.counts[g.key] > 0
-        ? `<span style="flex:${row.counts[g.key]};background:${g.bar};"></span>` : '').join('');
+    const bar = barHtml(row);
     return `<tr class="${isTotal ? 'sum-total' : ''}">
         <th style="color:${row.color};">${escapeHtml(row.label)}</th>
         ${cells}
         <td class="sum-num">${row.total}</td>
-        <td class="sum-rate" style="color:#ffd700;">${pct(pmUp, row.total)}</td>
-        <td class="sum-rate" style="color:#00ffff;">${pct(exPlusUp, row.total)}</td>
+        <td class="sum-rate" style="color:var(--g-pm);">${pct(pmUp, row.total)}</td>
+        <td class="sum-rate" style="color:var(--g-exp);">${pct(exPlusUp, row.total)}</td>
         <td class="sum-bar-cell"><div class="sum-bar">${bar}</div></td>
     </tr>`;
 }
@@ -112,9 +176,9 @@ function renderTable() {
         return;
     }
     const rows = buildRows(songs);
-    const total = countRow('合計', '#ffffff', songs);
-    const legend = GRADES.map(g => `<span><i style="background:${g.bar};"></i>${g.label}</span>`).join('');
+    const total = countRow('合計', 'var(--text)', songs);
     out.innerHTML = `
+        <div class="capture-wrap">
         <div id="${AREA_ID}" class="summary-capture">
             <div class="summary-head">
                 <div>
@@ -125,12 +189,14 @@ function renderTable() {
             </div>
             <table class="summary-big">
                 <tr><th></th>${GRADES.map(g => `<th style="color:${g.color};">${g.label}</th>`).join('')}
-                    <th>合計</th><th style="color:#ffd700;">PM以上</th><th style="color:#00ffff;">EX+以上</th><th>内訳</th></tr>
+                    <th>合計</th><th style="color:var(--g-pm);">PM以上</th><th style="color:var(--g-exp);">EX+以上</th><th>内訳</th></tr>
                 ${rows.map(r => rowHtml(r, false)).join('')}
                 ${rows.length > 1 ? rowHtml(total, true) : ''}
             </table>
-            <div class="summary-legend">${legend}</div>
-        </div>`;
+            <div class="summary-legend">${legendHtml()}</div>
+        </div>
+        </div>
+        ${mobileHtml(rows, total)}`;
 }
 
 function chip(label, active, onClick) {
@@ -179,7 +245,7 @@ function mount(container) {
                 <div class="summary-control"><span class="summary-label">レベル</span>
                     <select class="summary-min"></select> 〜 <select class="summary-max"></select></div>
                 <div class="summary-control"><span class="summary-label">行</span><div class="summary-rows chips"></div></div>
-                <button type="button" class="btn-summary-export">📷 画像を保存</button>
+                <button type="button" class="btn-summary-export">${iconLabel('camera', '画像を保存')}</button>
                 <p class="summary-note">PST・PRS のスコアは、取得方法で「全難易度」などを選んで取得したデータが必要です。</p>
             </div>
             <div class="summary-output"></div>
@@ -199,6 +265,12 @@ function mount(container) {
     container.querySelector('.btn-summary-export').addEventListener('click', e => {
         if (document.getElementById(AREA_ID)) exportImage(AREA_ID, 'arcaea_summary.png', e.currentTarget, profile);
     });
+    // スマホ幅: プレビューを開いて、そこから保存する
+    container.querySelector('.summary-output').addEventListener('click', e => {
+        if (e.target.closest('.sm-preview') && document.getElementById(AREA_ID)) {
+            openPreview(AREA_ID, 'arcaea_summary.png', '達成状況表', profile);
+        }
+    });
     refresh();
 }
 
@@ -213,7 +285,8 @@ function update(songs, newProfile) {
 
 export default {
     id: 'summary',
-    label: '📊 達成状況表',
+    label: '達成状況表',
+    icon: 'summary',
     description: '難易度・レベルごとに、理論値・PM・EX+ などの達成数をまとめた表を作ります。',
     mount,
     update,

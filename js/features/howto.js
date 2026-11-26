@@ -1,8 +1,10 @@
 // 取得方法: collect.js を呼ぶブックマークレットの選択・コピーと、登録・実行手順の説明
+import { icon, iconLabel } from '../icons.js';
 
+// 先頭が最初に選ばれている状態になる
 const MODES = [
-    { key: 'std', label: 'FTR・BYD・ETR（従来）' },
-    { key: 'all', label: '全難易度' },
+    { key: 'all', label: '全難易度（おすすめ）' },
+    { key: 'std', label: 'FTR・BYD・ETR' },
     { key: '0', label: 'PSTのみ' },
     { key: '1', label: 'PRSのみ' },
     { key: '2', label: 'FTRのみ' },
@@ -11,8 +13,8 @@ const MODES = [
 ];
 // 取得のしかた。増分は前回分と同じ記録が出たところで取得をやめるので速い
 const FETCH_TYPES = [
-    { key: 'inc', label: '⚡ 増分（速い・おすすめ）' },
-    { key: 'full', label: '📦 全件（従来どおり）' },
+    { key: 'inc', label: '増分（速い・おすすめ）', icon: 'zap' },
+    { key: 'full', label: '全件', icon: 'box' },
 ];
 const ARCAEA_ONLINE_URL = 'https://arcaea.lowiro.com/';
 
@@ -36,7 +38,7 @@ async function copyText(text, textarea) {
 
 const HOWTO_HTML = `
     <div class="howto">
-        <h2>📥 all.json の取り方</h2>
+        <h2>${icon('download')}all.json の取り方</h2>
         <p class="howto-note">Arcaea Online にログインした状態で、ブックマークに登録したコードを実行します。PC・スマホどちらでも使えます。</p>
 
         <h3>1. 取得する難易度と取得のしかたを選んで、コードをコピー</h3>
@@ -45,7 +47,7 @@ const HOWTO_HTML = `
         <p class="howto-note">増分: 前回の取得から更新された譜面だけを取りに行くので、数秒〜十数秒で終わります（初回や、その難易度を前回取っていないときは全件取得になります）。
             全件: 毎回すべてのページを取り直します。増分で何かおかしいと感じたときはこちらを使ってください。</p>
         <textarea class="howto-code" readonly rows="3"></textarea>
-        <button type="button" class="howto-copy">📋 コードをコピー</button>
+        <button type="button" class="howto-copy">${iconLabel('copy', 'コードをコピー')}</button>
         <p class="howto-note">一部の難易度だけ取っても、前回までに取った分と合体して保存されます（同じブラウザで取得した場合）。
             このサイトに読み込んだときも、保存済みのデータと合体します。</p>
 
@@ -56,6 +58,8 @@ const HOWTO_HTML = `
             <li><b>PC</b>: ブックマークバーに適当なページを登録し、URL をコピーしたコードに置き換える</li>
         </ul>
         <p class="howto-note">名前は「arcaea取得」のように、入力しやすい短い名前がおすすめです。</p>
+        <p class="howto-point">${icon('check')}<span><b>ブックマークの登録は最初の1回だけでOKです。</b>次からは 3〜5 の手順だけで取得できます。
+            このサイトでコードの更新をお知らせしたときだけ、新しいコードをコピーして登録し直してください。</span></p>
 
         <h3>3. Arcaea Online にログイン</h3>
         <p><a href="${ARCAEA_ONLINE_URL}" target="_blank" rel="noopener">${ARCAEA_ONLINE_URL}</a> を開いてログインします。</p>
@@ -68,8 +72,8 @@ const HOWTO_HTML = `
         </ul>
 
         <h3>5. サイトに送る</h3>
-        <p>取得が終わったら「🌐 サイトに送る」を押すと、このサイトが新しいタブで開き、そのままデータが読み込まれます。</p>
-        <p class="howto-note">うまくいかないときは「📥 保存」で all.json を保存し、このサイトの「📂 all.json を選択」または「🔄 データ更新」から読み込んでください。
+        <p>取得が終わったら「サイトに送る」を押すと、このサイトが新しいタブで開き、そのままデータが読み込まれます。</p>
+        <p class="howto-note">うまくいかないときは「保存」で all.json を保存し、このサイトの「all.json を選択」または「データ更新」から読み込んでください。
             ポップアップがブロックされた場合は、ブラウザの設定で Arcaea Online のポップアップを許可してください。</p>
     </div>`;
 
@@ -88,23 +92,24 @@ export function mountHowto(container) {
         code.value = bookmarkletCode(selected.mode, selected.fetch);
     }
 
-    function addChoice(box, label, data, onClick) {
+    function addChoice(box, label, data, onClick, iconName) {
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'howto-mode';
         Object.assign(b.dataset, data);
-        b.textContent = label;
+        b.innerHTML = iconName ? iconLabel(iconName, label) : '';
+        if (!iconName) b.textContent = label;
         b.addEventListener('click', () => { onClick(); refresh(); });
         box.appendChild(b);
     }
 
-    MODES.forEach(m => addChoice(modes, m.label, { mode: m.key }, () => { selected.mode = m.key; }));
-    FETCH_TYPES.forEach(t => addChoice(fetchBox, t.label, { fetch: t.key }, () => { selected.fetch = t.key; }));
+    MODES.forEach(m => addChoice(modes, m.label, { mode: m.key }, () => { selected.mode = m.key; }, m.icon));
+    FETCH_TYPES.forEach(t => addChoice(fetchBox, t.label, { fetch: t.key }, () => { selected.fetch = t.key; }, t.icon));
 
     copyBtn.addEventListener('click', async () => {
         const ok = await copyText(code.value, code);
-        copyBtn.textContent = ok ? '✅ コピーしました' : '⚠️ コピーできませんでした（長押しで選択してください）';
-        setTimeout(() => { copyBtn.textContent = '📋 コードをコピー'; }, 2000);
+        copyBtn.innerHTML = ok ? iconLabel('check', 'コピーしました') : iconLabel('alert', 'コピーできませんでした（長押しで選択してください）');
+        setTimeout(() => { copyBtn.innerHTML = iconLabel('copy', 'コードをコピー'); }, 2000);
     });
 
     refresh();
@@ -112,6 +117,7 @@ export function mountHowto(container) {
 
 export default {
     id: 'howto',
-    label: '📖 取得方法',
+    label: '取得方法',
+    icon: 'book',
     mount: mountHowto,
 };

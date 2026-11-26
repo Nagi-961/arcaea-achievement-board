@@ -1,5 +1,6 @@
 // スコア目標計算機: 目標スコアと内部精度の失点から、許容できる FAR / LOST を計算する
 // all.json がなくても master.csv のノーツ数だけで使える。データがあれば自己ベストとの差も出す
+import { icon, iconLabel } from '../icons.js';
 import { escapeHtml, compareTitle, diffColors, levelSortKey } from '../board.js';
 import { calcScore } from '../calc.js';
 
@@ -12,11 +13,11 @@ const DIFFS = [
 const TARGET_DIFFS = DIFFS.flatMap(d => d.match);
 // PM は FAR・LOST 0 が条件なので、スコアではなく別扱いにする
 const GRADE_TARGETS = [
-    { key: 'PM', label: 'PM', score: null, color: '#ffd700' },
-    { key: 'EX+', label: 'EX+', score: 9900000, color: '#00ffff' },
-    { key: 'EX', label: 'EX', score: 9800000, color: '#32cd32' },
-    { key: 'AA', label: 'AA', score: 9500000, color: '#ff4c4c' },
-    { key: 'A', label: 'A', score: 9200000, color: '#ff8a65' },
+    { key: 'PM', label: 'PM', score: null, color: 'var(--g-pm)' },
+    { key: 'EX+', label: 'EX+', score: 9900000, color: 'var(--g-exp)' },
+    { key: 'EX', label: 'EX', score: 9800000, color: 'var(--g-ex)' },
+    { key: 'AA', label: 'AA', score: 9500000, color: 'var(--g-aa)' },
+    { key: 'A', label: 'A', score: 9200000, color: 'var(--g-a)' },
 ];
 const LIST_LOSTS = [0, 1, 2, 3];
 const MAX_TABLE_ROWS = 40;
@@ -98,7 +99,7 @@ function adviceHtml(chart, record, target) {
         <div class="tg-best-judge">PURE ${record.pure}（光 ${record.shiny}）　FAR ${record.far}　LOST ${record.lost}</div>
         <div class="tg-best-loss">内部精度の失点: ${bestLoss}
             <button type="button" class="tg-use-loss" data-loss="${bestLoss}">この値で計算する</button></div>`;
-    if (achieved(record, target)) return head + `<div class="tg-advice ok">✅ 目標 ${targetText()} は達成済みです</div></div>`;
+    if (achieved(record, target)) return head + `<div class="tg-advice ok">${icon('check')}目標 ${targetText()} は達成済みです</div></div>`;
 
     const lines = [];
     const farAtLost = maxFar(chart.notes, record.lost, loss, target);
@@ -172,7 +173,7 @@ function listOutputHtml() {
             let need = '<td class="tg-ng">-</td>';
             if (r) {
                 const f = maxFar(c.notes, r.lost, state.loss, target);
-                need = achieved(r, target) ? '<td class="tg-ok">✅</td>'
+                need = achieved(r, target) ? `<td class="tg-ok">${icon('check')}</td>`
                     : f >= 0 ? `<td>FAR −${r.far - f}</td>` : '<td class="tg-ng">LOST減必要</td>';
             }
             best = `<td class="tg-bestcell">${r ? `${r.far} / ${r.lost}` : '-'}</td>${need}`;
@@ -226,8 +227,8 @@ function mount(container) {
         <div class="tg-tool">
             <div class="summary-controls tg-controls">
                 <div class="summary-control"><span class="summary-label">表示</span><div class="chips">
-                    <button type="button" class="chip" data-mode="calc">🎯 譜面ごとの早見表</button>
-                    <button type="button" class="chip" data-mode="list">📋 全譜面の一覧</button></div></div>
+                    <button type="button" class="chip" data-mode="calc">${iconLabel('target', '譜面ごとの早見表')}</button>
+                    <button type="button" class="chip" data-mode="list">${iconLabel('list', '全譜面の一覧')}</button></div></div>
                 <div class="summary-control"><span class="summary-label">目標</span><div class="chips">
                     ${GRADE_TARGETS.map(g => `<button type="button" class="chip" data-grade="${g.key}">${g.label}</button>`).join('')}</div>
                     <input type="number" class="tg-input tg-score" inputmode="numeric" min="0" max="10010000" step="1000" placeholder="数値で指定（例 9950000）"></div>
@@ -237,14 +238,14 @@ function mount(container) {
                 <p class="summary-note">スコア = 10,000,000 ×（2×PURE＋FAR）÷（2×ノーツ数）＋光った PURE の数（小数点以下切り捨て）。対象は FTR / BYD / INS / ETR です。</p>
             </div>
             <div class="tg-calc">
-                <input type="search" class="tg-input tg-search" placeholder="🔍 曲名で検索">
+                <input type="search" class="tg-input tg-search" placeholder="曲名で検索">
                 <div class="tg-hits"></div>
             </div>
             <div class="tg-listbox summary-controls" hidden>
                 <div class="summary-control"><span class="summary-label">難易度</span><div class="chips">
                     ${DIFFS.map(d => `<button type="button" class="chip" data-listdiff="${d.key}">${d.label}</button>`).join('')}</div></div>
                 <div class="summary-control"><span class="summary-label">レベル</span><select class="tg-minlv"></select> 以上</div>
-                <div class="summary-control"><input type="search" class="tg-input tg-listsearch" placeholder="🔍 曲名で絞り込み"></div>
+                <div class="summary-control"><input type="search" class="tg-input tg-listsearch" placeholder="曲名で絞り込み"></div>
             </div>
             <div class="tg-output"></div>
         </div>`;
@@ -308,7 +309,8 @@ function update(songs) {
 
 export default {
     id: 'target',
-    label: '🎯 スコア目標計算機',
+    label: 'スコア目標計算機',
+    icon: 'target',
     description: '目標スコア（EX+ や 9,950,000 など）に届くには FAR・LOST をいくつまで出せるか計算します。all.json なしでも使えます。',
     needsData: false,
     mount,

@@ -1,5 +1,9 @@
 // 成長記録: 日・週・月・年ごとに、自己ベストを更新した譜面と、ポテンシャル・PM数・EX+数の推移をまとめる
-import { escapeHtml, diffColors, profileHtml, handleCoverError, compareTitle } from '../board.js';
+// PC幅では保存用のレポートをそのまま見せる。スマホ幅では数値のリスト(タップでその推移のグラフ)と
+// 更新した譜面のリストを見せ、保存は「画像を作る」のプレビュー(preview.js)から行う
+import { icon, iconLabel } from '../icons.js';
+import { openPreview } from '../preview.js';
+import { escapeHtml, diffColors, profileHtml, handleCoverError, compareTitle, coverSrc } from '../board.js';
 import { exportImage } from '../export.js';
 import { loadHistory } from '../history.js';
 import { playPotential, gradeOf, best30Average, oldMaxPotential } from '../calc.js';
@@ -21,6 +25,8 @@ const TREND_BUCKETS = { day: 8, week: 8, month: 8, year: 5 };
 const LIST_LIMIT = 30;
 
 const state = { unit: 'week', offset: 0, sort: 'pot' };
+// スマホ幅で開いている数値(グラフ)。描き直しても開いたままにする
+const openStats = new Set();
 let songs = [];
 let profile = null;
 let view = null;
@@ -122,8 +128,15 @@ function statCard(label, value, delta) {
     return `<div class="gr-stat"><div class="gr-stat-label">${label}</div><div class="gr-stat-value">${value}</div><div>${delta || '&nbsp;'}</div></div>`;
 }
 
+// グラフの色。SVG は画像に撮るとき CSS 変数やクラスの色が効かないので、描くときに今のテーマの値を読んで直接書く
+function chartColors() {
+    const css = getComputedStyle(document.documentElement);
+    const v = name => css.getPropertyValue(name).trim();
+    return { line: v('--chart-line'), dot: v('--chart-dot'), grid: v('--chart-grid'), axis: v('--text-muted') };
+}
+
 // 1系列だけの小さな折れ線。凡例は付けずタイトルで名前を示す
-function sparkHtml(title, points, format) {
+function sparkHtml(title, points, format, c) {
     const W = 240, H = 110, PADX = 14, TOP = 16, BOTTOM = 22;
     const vals = points.map(p => p.v).filter(v => v != null);
     if (vals.length === 0) return `<div class="gr-chart"><div class="gr-chart-title">${title}</div><div class="gr-chart-empty">データなし</div></div>`;
@@ -140,15 +153,15 @@ function sparkHtml(title, points, format) {
     const last = points.length - 1;
     const dots = points.map((p, i) => p.v == null ? '' :
         `<g class="gr-pt"><circle cx="${x(i)}" cy="${y(p.v)}" r="12" fill="transparent"/>
-            <circle cx="${x(i)}" cy="${y(p.v)}" r="${i === last ? 5 : 4}" fill="${i === last ? '#6fd6ff' : '#12122c'}" stroke="#6fd6ff" stroke-width="2"/>
+            <circle cx="${x(i)}" cy="${y(p.v)}" r="${i === last ? 5 : 4}" fill="${i === last ? c.line : c.dot}" stroke="${c.line}" stroke-width="2"/>
             <title>${escapeHtml(p.label)}: ${format(p.v)}</title></g>`).join('');
     const labels = points.map((p, i) => (i === 0 || i === last)
-        ? `<text x="${x(i)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : 'end'}" class="gr-axis">${escapeHtml(p.label)}</text>` : '').join('');
+        ? `<text x="${x(i)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : 'end'}" class="gr-axis" fill="${c.axis}">${escapeHtml(p.label)}</text>` : '').join('');
     const lastVal = points[last].v;
     return `<div class="gr-chart"><div class="gr-chart-title">${title}<span>${lastVal == null ? '' : format(lastVal)}</span></div>
         <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${escapeHtml(title)}の推移">
-            <line x1="${PADX}" x2="${W - PADX}" y1="${H - BOTTOM}" y2="${H - BOTTOM}" stroke="#2c2c52" stroke-width="1"/>
-            <path d="${path}" fill="none" stroke="#6fd6ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+            <line x1="${PADX}" x2="${W - PADX}" y1="${H - BOTTOM}" y2="${H - BOTTOM}" stroke="${c.grid}" stroke-width="1"/>
+            <path d="${path}" fill="none" stroke="${c.line}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
             ${dots}${labels}
         </svg></div>`;
 }
@@ -165,19 +178,52 @@ function songRowHtml(row, i) {
     } else {
         scoreDelta = potDelta = '<span class="gr-delta zero">前回不明</span>';
     }
-    const src = `covers/${encodeURIComponent(s.song_id)}_${s.difficulty}.png`;
+    const src = coverSrc(s.song_id, s.difficulty);
     return `<tr>
         <td class="gr-rank">${i + 1}</td>
         <td class="gr-song">
             <img class="jacket gr-jacket" src="${src}" alt="" data-song-id="${escapeHtml(s.song_id)}">
             <div><div class="gr-song-title">${escapeHtml(s.title)}</div>
-            <span class="tg-diff" style="background:${diffColors[s.difficulty] || '#444'};">${s.difficulty}</span>
+            <span class="tg-diff" style="background:${diffColors[s.difficulty] || 'var(--tile-border)'};">${s.difficulty}</span>
             <span class="gr-song-meta">Lv ${escapeHtml(s.level)} (${s.constant.toFixed(1)})</span></div>
         </td>
         <td class="gr-grade gr-g-${grade.replace('+', 'p')}">${grade}</td>
         <td class="gr-score">${fmt(row.now[1])}<br>${scoreDelta}</td>
         <td class="gr-pot">${row.potNow.toFixed(3)}<br>${potDelta}</td>
     </tr>`;
+}
+
+// ---- スマホ幅 ----
+// 数値1つ = 1行。タップで下にその推移のグラフを開く(グラフがない項目は開かない)
+function mobileStatHtml(key, label, value, delta, chart) {
+    if (!chart) {
+        return `<div class="gm-stat gm-static"><span class="gm-label">${label}</span><span class="gm-value">${value}</span><span class="gm-delta"></span><span class="gm-chev"></span></div>`;
+    }
+    return `<details class="gm-stat slide" data-key="${key}"${openStats.has(key) ? ' open' : ''}>
+            <summary><span class="gm-label">${label}</span><span class="gm-value">${value}</span><span class="gm-delta">${delta || ''}</span>${icon('chevron', 'gm-chev')}</summary>
+            <div class="slide-body"><div class="gm-chart">${chart}</div></div>
+        </details>`;
+}
+
+function mobileSongHtml(row) {
+    const s = row.song;
+    const grade = gradeOf(row.now[1], row.now[2]);
+    const scoreDelta = row.prev ? deltaHtml(row.now[1] - row.prev[1])
+        : row.isNew ? '<span class="gr-delta new">NEW</span>' : '<span class="gr-delta zero">前回不明</span>';
+    const potDelta = row.prev ? deltaHtml(row.potNow - row.potPrev, 3) : '';
+    return `<div class="gm-song">
+            <img class="jacket gm-jacket" src="${coverSrc(s.song_id, s.difficulty)}" alt="" loading="lazy" data-song-id="${escapeHtml(s.song_id)}" style="border-color:${diffColors[s.difficulty] || 'var(--tile-border)'};">
+            <div class="gm-main">
+                <div class="gm-title">${escapeHtml(s.title)}</div>
+                <div class="gm-meta"><span class="tg-diff" style="background:${diffColors[s.difficulty] || 'var(--tile-border)'};">${s.difficulty}</span> Lv ${escapeHtml(s.level)}
+                    <span class="gm-pot">pot ${row.potNow.toFixed(3)} ${potDelta}</span></div>
+            </div>
+            <div class="gm-right">
+                <span class="gr-g-${grade.replace('+', 'p')} gm-grade">${grade}</span>
+                <span class="gm-score">${fmt(row.now[1])}</span>
+                ${scoreDelta}
+            </div>
+        </div>`;
 }
 
 function render() {
@@ -235,10 +281,20 @@ function render() {
         buckets.push({ label: shortLabel(state.unit, r), b30: s.b30, oldMax: s.oldMax, pm: s.pm, exPlus: s.exPlus, rating: ratingAt(history, r.end) });
     }
     const series = key => buckets.map(b => ({ label: b.label, v: b[key] }));
+    const colors = chartColors();
 
     const shown = rows.slice(0, LIST_LIMIT);
     const sortLabel = SORTS.find(s => s.key === state.sort).label;
+    const stats = [
+        { key: 'rating', label: 'ポテンシャル', value: fmtRating(ratingEnd), delta: deltaHtml(ratingDelta, 3), chart: sparkHtml('ポテンシャル', series('rating'), fmtRating, colors) },
+        { key: 'b30', label: 'ベスト30平均', value: fmtPot(endStats.b30), delta: deltaHtml(diff('b30'), 3), chart: sparkHtml('ベスト30平均', series('b30'), fmtPot, colors) },
+        { key: 'oldMax', label: '旧基準（最大）', value: fmtPot(endStats.oldMax), delta: deltaHtml(diff('oldMax'), 3), chart: sparkHtml('旧基準（最大）', series('oldMax'), fmtPot, colors) },
+        { key: 'pm', label: 'PM 数', value: fmt(endStats.pm), delta: deltaHtml(endStats.pm - startStats.pm), chart: sparkHtml('PM 数', series('pm'), fmt, colors) },
+        { key: 'exPlus', label: 'EX+ 以上', value: fmt(endStats.exPlus), delta: deltaHtml(endStats.exPlus - startStats.exPlus), chart: sparkHtml('EX+ 以上', series('exPlus'), fmt, colors) },
+        { key: 'rows', label: '更新した譜面', value: fmt(rows.length), delta: '', chart: null },
+    ];
     out.innerHTML = `
+        <div class="capture-wrap">
         <div id="${AREA_ID}" class="gr-capture">
             <div class="summary-head">
                 <div>
@@ -248,19 +304,10 @@ function render() {
                 ${profileHtml(profile)}
             </div>
             <div class="gr-stats">
-                ${statCard('ポテンシャル', fmtRating(ratingEnd), deltaHtml(ratingDelta, 3))}
-                ${statCard('ベスト30平均', fmtPot(endStats.b30), deltaHtml(diff('b30'), 3))}
-                ${statCard('旧基準（最大）', fmtPot(endStats.oldMax), deltaHtml(diff('oldMax'), 3))}
-                ${statCard('PM 数', fmt(endStats.pm), deltaHtml(endStats.pm - startStats.pm))}
-                ${statCard('EX+ 以上', fmt(endStats.exPlus), deltaHtml(endStats.exPlus - startStats.exPlus))}
-                ${statCard('更新した譜面', fmt(rows.length), '')}
+                ${stats.map(st => statCard(st.label, st.value, st.delta)).join('')}
             </div>
             <div class="gr-charts">
-                ${sparkHtml('ポテンシャル', series('rating'), fmtRating)}
-                ${sparkHtml('ベスト30平均', series('b30'), fmtPot)}
-                ${sparkHtml('旧基準（最大）', series('oldMax'), fmtPot)}
-                ${sparkHtml('PM 数', series('pm'), fmt)}
-                ${sparkHtml('EX+ 以上', series('exPlus'), fmt)}
+                ${stats.filter(st => st.chart).map(st => st.chart).join('')}
             </div>
             <h2 class="gr-list-title">自己ベストを更新した譜面 <span>${escapeHtml(sortLabel)}</span></h2>
             ${rows.length === 0 ? '<p class="summary-empty">この期間に更新した譜面はありません。</p>' : `
@@ -269,6 +316,16 @@ function render() {
                 ${shown.map(songRowHtml).join('')}
             </table>
             ${rows.length > shown.length ? `<p class="gr-more">ほか ${rows.length - shown.length} 譜面</p>` : ''}`}
+        </div>
+        </div>
+        <div class="gm-view">
+            <button class="btn-preview gm-preview" type="button">${iconLabel('camera', '画像を作る')}</button>
+            <p class="gm-period">${escapeHtml(periodLabel(state.unit, range))}　${UNITS.find(u => u.key === state.unit).label}間</p>
+            <div class="gm-stats">${stats.map(st => mobileStatHtml(st.key, st.label, st.value, st.delta, st.chart)).join('')}</div>
+            <h2 class="gm-list-title">自己ベストを更新した譜面 <span>${escapeHtml(sortLabel)}</span></h2>
+            ${rows.length === 0 ? '<p class="summary-empty">この期間に更新した譜面はありません。</p>'
+                : `<div class="gm-songs">${shown.map(mobileSongHtml).join('')}</div>
+                   ${rows.length > shown.length ? `<p class="gr-more">ほか ${rows.length - shown.length} 譜面（画像には上位 ${LIST_LIMIT} 件）</p>` : ''}`}
         </div>
         <p class="tg-note">※ ポテンシャルは all.json を読み込んだ時点の公式の値です。ベスト30平均・旧基準・PM 数・EX+ 数は記録から計算しています。
             ベスト30平均は単曲ポテンシャル上位30の単純平均、旧基準（最大）は旧方式（クリアボーナスなし）で上位10を2倍して ÷40 した値（リセント枠をベスト上位10とみなした到達可能な最大値）です。
@@ -289,7 +346,7 @@ function mount(container) {
                 </div>
                 <div class="summary-control"><span class="summary-label">並び</span><div class="chips">
                     ${SORTS.map(s => `<button type="button" class="chip" data-sort="${s.key}">${s.label}</button>`).join('')}</div></div>
-                <button type="button" class="btn-summary-export">📷 画像を保存</button>
+                <button type="button" class="btn-summary-export">${iconLabel('camera', '画像を保存')}</button>
             </div>
             <div class="gr-output"></div>
         </div>`;
@@ -302,8 +359,19 @@ function mount(container) {
         else if (b.classList.contains('btn-summary-export') && document.getElementById(AREA_ID)) {
             exportImage(AREA_ID, `arcaea_growth_${state.unit}.png`, b, profile);
         }
+        else if (b.classList.contains('gm-preview') && document.getElementById(AREA_ID)) {
+            openPreview(AREA_ID, `arcaea_growth_${state.unit}.png`, '成長記録', profile);
+        }
     });
+    // スマホ幅: 開いているグラフを覚えておく(toggle はバブリングしないので capture で受ける)
+    container.addEventListener('toggle', e => {
+        const d = e.target;
+        if (!(d instanceof HTMLDetailsElement) || !d.dataset.key) return;
+        if (d.open) openStats.add(d.dataset.key); else openStats.delete(d.dataset.key);
+    }, true);
     container.addEventListener('error', handleCoverError, true);
+    // テーマを切り替えたら、グラフの色を描き直す
+    document.addEventListener('themechange', () => render());
     render();
 }
 
@@ -315,7 +383,8 @@ function update(allSongs, newProfile) {
 
 export default {
     id: 'growth',
-    label: '📈 成長記録',
+    label: '成長記録',
+    icon: 'growth',
     description: '日・週・月・年ごとに、自己ベストを更新した譜面とポテンシャル・PM 数・EX+ 数の推移をまとめます。',
     mount,
     update,
