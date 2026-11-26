@@ -2,7 +2,7 @@ import { loadMaster } from './master.js';
 import { normalizeData, mergeData, saveData, loadSavedData } from './storage.js';
 import { exportImage, exportJson } from './export.js';
 import { loadHistory, recordHistory, importHistory } from './history.js';
-import { renderBoard, handleCoverError, isCoversOff, setCoversOff, handleListTab } from './board.js';
+import { renderBoard, handleCoverError, isCoversOff, setCoversOff, handleListTab, loadCoverList } from './board.js';
 import { openPreview } from './preview.js';
 import { gradeOfRecord } from './calc.js';
 import rank from './features/rank.js';
@@ -269,7 +269,8 @@ async function main() {
     const jsonInput = document.getElementById('json-input');
     const masterStatus = document.getElementById('master-status');
     try {
-        masterData = await loadMaster();
+        // ジャケット一覧はマスタと並行して読む(失敗しても表示はできる)
+        [masterData] = await Promise.all([loadMaster(), loadCoverList()]);
     } catch (err) {
         console.error(err);
         masterStatus.textContent = "❌ 楽曲データ(data/master.csv)を読み込めませんでした。";

@@ -21,6 +21,27 @@ const SECTIONS = [
 ];
 
 const COVER_DIR = 'covers';
+// covers/covers.json(make_covers.py が作る、置いてあるジャケットの一覧)。読めなければ null で、従来どおり順に試す
+let coverList = null;
+
+export async function loadCoverList() {
+    try {
+        const res = await fetch(`${COVER_DIR}/covers.json`, { cache: 'no-cache' });
+        if (!res.ok) throw new Error(`covers.json の取得に失敗しました (${res.status})`);
+        coverList = new Set(await res.json());
+    } catch (err) {
+        console.warn(err);
+        coverList = null;
+    }
+}
+
+// ジャケットの URL。一覧があれば {song_id}_{難易度} → {song_id} → default を最初から選び、404 のリクエストを出さない
+export function coverSrc(songId, difficulty) {
+    const id = encodeURIComponent(songId);
+    if (!coverList || coverList.has(`${songId}_${difficulty}`)) return `${COVER_DIR}/${id}_${difficulty}.png`;
+    if (coverList.has(songId)) return `${COVER_DIR}/${id}.png`;
+    return `${COVER_DIR}/default.png`;
+}
 
 // ジャケットオフ（黒地に曲名＋ランク/スコア）の設定。実績ランク表とスコア特化表で共有し、ブラウザに覚えさせる
 const COVERS_OFF_KEY = 'arcaea_covers_off_v1';
@@ -142,8 +163,8 @@ function tileHtml(song, feature) {
     const dColor = diffColors[song.difficulty] || "#444";
     const noplayCls = song.scoreVal === 0 ? " noplay" : "";
     const title = escapeHtml(song.title);
-    // 見つからなければ handleCoverError が {song_id}.png → default.png の順に差し替える
-    const src = `${COVER_DIR}/${encodeURIComponent(song.song_id)}_${song.difficulty}.png`;
+    // 一覧と食い違って見つからなければ、handleCoverError が {song_id}.png → default.png の順に差し替える
+    const src = coverSrc(song.song_id, song.difficulty);
     return `
         <div class="tile${noplayCls}" style="border-color: ${dColor};">
             <img src="${src}" class="jacket" alt="${title}" data-song-id="${escapeHtml(song.song_id)}">
@@ -184,7 +205,7 @@ function listDetailHtml(song) {
 
 function listRowHtml(song) {
     const title = escapeHtml(song.title);
-    const src = `${COVER_DIR}/${encodeURIComponent(song.song_id)}_${song.difficulty}.png`;
+    const src = coverSrc(song.song_id, song.difficulty);
     const score = song.scoreVal > 0 ? song.scoreVal.toLocaleString() : '---';
     // タップで開く詳細は <details> に任せる（JS 不要）
     return `<details class="bl-row${song.scoreVal === 0 ? ' noplay' : ''}">
@@ -282,7 +303,10 @@ function inSection(sec, song) {
 export function handleCoverError(e) {
     const img = e.target;
     if (!(img instanceof HTMLImageElement) || !img.classList.contains('jacket')) return;
-    const stage = img.dataset.fallback || '';
+    // 一覧から最初に {song_id}.png / default.png を選んでいることもあるので、今の URL から次の段を決める
+    if (img.src.endsWith('/default.png')) return;
+    const songSrc = `${COVER_DIR}/${encodeURIComponent(img.dataset.songId)}.png`;
+    const stage = img.src.endsWith('/' + songSrc) ? 'song' : (img.dataset.fallback || '');
     if (stage === '') {
         img.dataset.fallback = 'song';
         img.src = `${COVER_DIR}/${encodeURIComponent(img.dataset.songId)}.png`;
