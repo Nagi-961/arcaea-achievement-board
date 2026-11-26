@@ -16,7 +16,7 @@
 </head>
 <body>
 
-    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="テーマを切り替える">☀</button>
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="テーマを切り替える"><span data-icon="sun" class="ico-sun"></span><span data-icon="moon" class="ico-moon"></span></button>
 
     <!-- トップページ。ツールを選ぶと app-content の各ビューに切り替わる -->
     <div id="home">
@@ -28,21 +28,21 @@
         </header>
 
         <section class="home-section">
-            <h2>🧰 ツール</h2>
+            <h2><span data-icon="tools"></span>ツール</h2>
             <div id="tool-cards" class="tool-cards"></div>
         </section>
 
         <section id="data-panel" class="home-section data-panel">
-            <h2>📂 プレイデータ</h2>
+            <h2><span data-icon="folder"></span>プレイデータ</h2>
             <p id="home-data-status" class="home-data-status">all.json を読み込むと、各ツールが使えるようになります。</p>
             <label class="file-upload-btn">
-                📂 all.json を選択
+                <span data-icon="folder"></span>all.json を選択
                 <input type="file" id="json-input" accept=".json" disabled>
             </label>
-            <p id="master-status" class="master-status">⏳ 楽曲データを読み込み中...</p>
-            <details class="upload-howto">
-                <summary>📖 all.json の取り方</summary>
-                <div id="upload-howto"></div>
+            <p id="master-status" class="master-status">楽曲データを読み込み中...</p>
+            <details class="upload-howto slide">
+                <summary><span data-icon="book"></span>all.json の取り方</summary>
+                <div id="upload-howto" class="slide-body"></div>
             </details>
         </section>
     </div>
@@ -50,19 +50,25 @@
     <div id="tab-menu">
         <!-- スマホ幅でだけ表示する ☰ メニューのバー -->
         <div class="menu-bar">
-            <button id="menu-toggle" class="menu-toggle" type="button" aria-expanded="false" aria-controls="menu-items" aria-label="メニュー">☰</button>
+            <button id="menu-toggle" class="menu-toggle" type="button" aria-expanded="false" aria-controls="menu-items" aria-label="メニュー"><span data-icon="menu"></span></button>
             <span id="menu-current" class="menu-current"></span>
         </div>
+        <!-- スマホ幅では左から出るドロワーになる -->
         <div id="menu-items" class="menu-items">
-            <button id="btn-home" class="tab-btn" type="button">🏠 ホーム</button>
+            <div class="drawer-head">
+                <span class="drawer-title">Menu</span>
+                <button id="drawer-close" class="drawer-close" type="button" aria-label="メニューを閉じる"><span data-icon="close"></span></button>
+            </div>
+            <button id="btn-home" class="tab-btn" type="button"><span data-icon="home"></span><span>ホーム</span></button>
             <span id="tab-buttons" class="tab-buttons"></span>
             <label class="tab-btn">
-                🔄 データ更新
+                <span data-icon="refresh"></span><span>データ更新</span>
                 <input type="file" id="json-update-input" accept=".json">
             </label>
-            <button id="btn-backup" class="tab-btn" type="button">💾 バックアップを保存</button>
+            <button id="btn-backup" class="tab-btn" type="button"><span data-icon="archive"></span><span>バックアップを保存</span></button>
             <span id="data-status" class="data-status"></span>
         </div>
+        <div id="menu-backdrop" class="menu-backdrop"></div>
     </div>
 
     <!-- はみ出し防止スクロールラッパー。各機能のビューは main.js が作る -->
@@ -76,6 +82,7 @@
         <!-- X のリンク先: 自分のアカウントの URL に書き換える -->
         <a class="x-link" href="https://x.com/NoooooB008" target="_blank" rel="noopener">𝕏 作者の X</a>
         <p class="copyright">© lowiro</p>
+        <p class="credit">Created by Nagi</p>
     </footer>
 
 </body>
