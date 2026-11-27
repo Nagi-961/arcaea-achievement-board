@@ -55,7 +55,7 @@
     --chart-grid: #2c2c52;
     --sum-bar-bg: rgba(255, 255, 255, 0.06);
     /* ランクの色(文字 / 棒グラフ / 光) */
-    --g-max: #ffdf00; --g-max-glow: 0 0 8px #ffdf00;
+    --g-max: #e4eefa; --g-max-bar: #b9c9dc; --g-max-glow: 0 0 6px rgba(190, 215, 255, 0.85);
     --g-pm: #ffd700; --g-pm-bar: #c9a227; --g-pm-glow: 0 0 5px #ffd700;
     --g-exp: #00ffff; --g-exp-bar: #00bcd4; --g-exp-glow: 0 0 4px #00ffff;
     --g-ex: #32cd32; --g-ex-glow: 0 0 4px #32cd32;
@@ -65,7 +65,7 @@
     --g-np: #777; --g-np-bar: #333;
     --g-zero: #444;
     /* 難易度を文字色として使うとき */
-    --d-PST: #4fc3f7; --d-PRS: #81c784; --d-FTR: #b45ce0; --d-BYD: #ff3b5c; --d-ETR: #d8bfd8;
+    --d-PST: #4fc3f7; --d-PRS: #81c784; --d-FTR: #b45ce0; --d-BYD: #ff3b5c; --d-ETR: #c3b0f2;
 }
 
 :root[data-theme="light"] {
@@ -113,7 +113,7 @@
     --chart-dot: #fcfaf6;
     --chart-grid: #ddd3c3;
     --sum-bar-bg: #ebe4d8;
-    --g-max: #b8860b; --g-max-glow: none;
+    --g-max: #5d6c82; --g-max-bar: #a3b1c2; --g-max-glow: none;
     --g-pm: #a87b00; --g-pm-bar: #c9a227; --g-pm-glow: none;
     --g-exp: #00838f; --g-exp-bar: #2aa3ae; --g-exp-glow: none;
     --g-ex: #2e7d32; --g-ex-glow: none;
@@ -122,12 +122,12 @@
     --g-bd: #795548; --g-bd-bar: #a1887f;
     --g-np: #a39a8e; --g-np-bar: #d9d0c1;
     --g-zero: #cfc5b5;
-    --d-PST: #1b87b8; --d-PRS: #3f8a45; --d-FTR: #7d2aa8; --d-BYD: #b3122e; --d-ETR: #8a5f8a;
+    --d-PST: #1b87b8; --d-PRS: #3f8a45; --d-FTR: #7d2aa8; --d-BYD: #b3122e; --d-ETR: #6a4fae;
 }
 
 /* ライトの「墨」の範囲(保存画像の見出しの帯・タイルのランクバー・表の合計行・メニュー)。
    紺地の上でも読めるよう、文字・ランクの色をこの中だけ明るい色に差し替える */
-:root[data-theme="light"] :is(.header-container, .summary-head, .tile .grade, .tile .score-bar, .summary-big .sum-total, #tab-menu, .theme-toggle) {
+:root[data-theme="light"] :is(.header-container, .summary-head, .tile .grade, .tile .score-bar, .b30-bar, .b30-no, .summary-big .sum-total, #tab-menu, .theme-toggle) {
     --bg: #1d1c33;
     --surface: #23223a;
     --surface-2: rgba(244, 239, 230, 0.07);
@@ -145,10 +145,11 @@
     --accent-text: #23223a;
     --glow: 0 0 0 1px #e0bf85, 0 8px 24px rgba(0, 0, 0, 0.25);
     --cell-bg: rgba(0, 0, 0, 0.18);
-    --g-max: #ffd95a; --g-pm: #f1c84b; --g-exp: #6fe0ea; --g-ex: #8fdc8f;
+    --g-max: #e4eefa; --g-pm: #f1c84b; --g-exp: #6fe0ea; --g-ex: #8fdc8f;
     --g-aa: #ff8a80; --g-a: #ffab85; --g-bd: #d7c3bb; --g-np: #8d88a0; --g-zero: rgba(244, 239, 230, 0.22);
-    color: var(--text);
 }
+/* 文字色も明るくする(ランクのバーはランクごとの色をそのまま使うので除く) */
+:root[data-theme="light"] :is(.header-container, .summary-head, .summary-big .sum-total, #tab-menu, .theme-toggle) { color: var(--text); }
 :root[data-theme="light"] .theme-toggle { background: var(--surface); color: var(--text); border-color: var(--surface); }
 /* 保存画像の見出しを紺の帯にする(保存範囲の端まで広げる) */
 :root[data-theme="light"] .header-container,
@@ -164,6 +165,7 @@
 :root[data-theme="light"] .gr-table th { border-bottom: 2px solid #23223a; color: #23223a; }
 :root[data-theme="light"] .gr-list-title { border-bottom: 2px solid #23223a; }
 :root[data-theme="light"] .gr-stat-value, :root[data-theme="light"] .gr-chart-title span { color: #23223a; }
+:root[data-theme="light"] .gr-group-title { color: #23223a; }
 /* スマホ幅のリストの見出しも墨で締める */
 :root[data-theme="light"] .bl-cc, :root[data-theme="light"] .gm-list-title { border-bottom: 2px solid #23223a; }
 
@@ -239,6 +241,33 @@ select:focus, .tg-input:focus { outline: none; border-color: var(--accent); box-
 .upload-howto summary .ico { margin-right: 6px; }
 .howto h2 .ico { margin-right: 10px; color: var(--accent); }
 .tg-advice.ok .ico { margin-right: 6px; }
+/* 理論値(MAX)の王冠。文字の前に小さく置く */
+.crown-mark { width: 1.05em; height: 1.05em; vertical-align: -0.15em; margin-right: 3px; }
+.crown-ico { width: 0.95em; height: 0.95em; margin-right: 3px; vertical-align: -0.1em; }
+/* ETR は FTR と同じ紫系なので、色だけに頼らず枠を「ラベンダーと白の斜めストライプ」にして見分ける(中の文字には重ならない)。
+   html2canvas は「枠の部分だけに敷く背景」(background-clip)を再現できないので、保存画像に写るタイルは
+   枠をなくして同じ幅の余白(padding)にし、そこからストライプの背景がのぞくようにする */
+.tile.diff-ETR, .b30-jacket.diff-ETR {
+    border-width: 0 !important;
+    /* repeating-linear-gradient も html2canvas で写らないので、小さな斜めの模様を敷き詰める */
+    background: linear-gradient(45deg, #a98be8 31%, #ffffff 31%, #ffffff 50%, #a98be8 50%, #a98be8 81%, #ffffff 81%) 0 0 / 10px 10px;
+}
+.tile.diff-ETR { padding: 2px; }
+.b30-jacket.diff-ETR { padding: 3px; }
+/* 下のバーは枠(余白)の内側に収める */
+.tile.diff-ETR .grade, .tile.diff-ETR .score-bar { left: 2px; right: 2px; bottom: 2px; width: auto; }
+.b30-jacket.diff-ETR .b30-bar { left: 3px; right: 3px; bottom: 3px; }
+.b30-jacket.diff-ETR .b30-no { top: 3px; left: 3px; }
+/* 画面だけのリストの img は、枠の部分にだけストライプを敷く */
+img.diff-ETR {
+    border-color: transparent !important;
+    background:
+        linear-gradient(var(--tile-bg), var(--tile-bg)) padding-box,
+        repeating-linear-gradient(45deg, #a98be8 0 5px, #ffffff 5px 8px) border-box;
+}
+/* ジャケットの左上に乗せる王冠 */
+.tile-crown { position: absolute; top: 3px; left: 3px; z-index: 2; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: rgba(10, 10, 30, 0.6); }
+.tile-crown .crown-mark { width: 16px; height: 16px; margin: 0; }
 .status-ico { margin-right: 6px; color: var(--accent); }
 .home-data-status .status-ico { color: var(--ok); }
 .data-panel.attention .status-ico { color: var(--gold); }
@@ -681,6 +710,92 @@ body.pv-open { overflow: hidden; }
 .gr-nav { gap: 10px; }
 .gr-nav .chip:disabled { opacity: 0.35; cursor: default; }
 .gr-period { font-weight: bold; font-size: 1.1em; min-width: 190px; text-align: center; }
+.gr-group { margin-bottom: 18px; }
+.gr-group-title { margin: 0 0 8px; font-size: 0.9em; color: var(--text-muted); letter-spacing: 0.12em; }
+.gr-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.gr-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px 6px; }
+.gr-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.gr-card .gr-stat-value { margin: 2px 0 0; }
+.gr-spark { display: block; width: 100%; height: auto; }
+/* ベスト30: ジャケットのタイル 5×6 */
+.b30-stats { display: flex; align-items: flex-end; gap: 28px; margin-bottom: 20px; }
+.b30-main small { display: block; color: var(--text-muted); font-size: 0.8em; font-weight: bold; }
+.b30-main b { font-family: var(--font-num); font-size: 2.6em; line-height: 1; }
+.b30-sub { display: flex; flex-direction: column; gap: 2px; padding-bottom: 4px; color: var(--text-muted); font-size: 0.85em; }
+.b30-sub b { font-family: var(--font-num); font-size: 1.2em; color: var(--text); }
+.b30-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px 14px; }
+.b30-tile { min-width: 0; }
+.b30-jacket { position: relative; aspect-ratio: 1; border: 3px solid var(--tile-border); border-radius: 6px; overflow: hidden; background: var(--tile-bg); }
+.b30-jacket .jacket { display: block; }
+/* 順位: 左上の小さな札 */
+.b30-no { position: absolute; top: 0; left: 0; min-width: 26px; padding: 2px 6px; box-sizing: border-box; text-align: center; border-bottom-right-radius: 6px; background: var(--tile-bar-bg); color: var(--text); font-family: var(--font-num); font-weight: 700; font-size: 0.95em; line-height: 1.2; }
+.b30-crown { top: 3px; left: auto; right: 3px; }
+/* 旧基準でリセント枠として2倍に数える上位10 */
+.b30-x2 { position: absolute; top: 4px; right: 4px; padding: 1px 6px; border-radius: 999px; background: var(--g-pm-bar); color: #1a1408; font-family: var(--font-num); font-weight: 700; font-size: 0.8em; }
+.b30-crown + .b30-x2 { right: 32px; }
+.b30-bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; align-items: baseline; padding: 3px 8px; background: var(--tile-bar-bg); border-top: 1px solid var(--tile-bar-line); font-family: var(--font-num); font-weight: 700; line-height: 1.15; }
+.b30-grade { font-size: 1.05em; }
+.b30-pot { font-size: 1.15em; color: var(--text); }
+.b30-title { margin-top: 6px; font-weight: bold; font-size: 0.92em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.b30-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; color: var(--text-muted); font-family: var(--font-num); font-weight: 600; font-size: 0.85em; }
+.b30-meta .tg-diff { font-size: 0.85em; }
+.b30-score { margin-left: auto; color: var(--text-sub); }
+/* スマホ幅のリスト: 実績表のリスト(.bl-row)を使い、順位と単曲ポテンシャルを足す */
+.b30-row summary { gap: 10px; }
+.b30m-pot { font-size: 1.15em; font-weight: 700; color: var(--text); }
+.b30m-no { width: 22px; flex-shrink: 0; text-align: right; color: var(--text-faint); font-family: var(--font-num); font-weight: 700; }
+.b30m-x2 { margin-left: 4px; padding: 0 5px; border-radius: 999px; background: var(--g-pm-bar); color: #1a1408; font-weight: bold; font-size: 0.85em; }
+.gr-hit { cursor: pointer; }
+.gr-hit.active .gr-guide { stroke-opacity: 0.8; }
+.gr-chart-note { margin: 4px 0 0; color: var(--text-faint); font-size: 0.78em; text-align: right; }
+/* グラフの数値のフキダシ(保存範囲の外、body に置く) */
+.gr-tip {
+    position: fixed; z-index: 60000; pointer-events: none; padding: 6px 10px; border-radius: 8px;
+    background: var(--surface-solid); border: 1px solid var(--border-strong); box-shadow: var(--shadow);
+    color: var(--text); white-space: nowrap; animation: tipIn 0.15s ease-out;
+}
+.gr-tip-title { color: var(--text-muted); font-size: 0.75em; font-weight: bold; }
+.gr-tip-value { font-family: var(--font-num); font-weight: 700; font-size: 1.05em; }
+@keyframes tipIn { from { opacity: 0; transform: translateY(3px); } }
+/* 更新した譜面の画像: 大きめのタイル */
+.gr-rec-sort { margin: -8px 0 14px; color: var(--text-muted); font-size: 0.85em; font-weight: bold; }
+/* 更新した譜面: 2列の行。主役はランクの境目のレーン(前回 → 今回の伸び)。ほかは静かにする */
+.rl-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; align-items: start; }
+.rl-col { min-width: 0; }
+/* 行の中身と同じ並びで、レーンの位置にだけ目盛りの名前を置く */
+.rl-scale { display: grid; grid-template-columns: 58px 1fr 78px; gap: 0 12px; padding-bottom: 4px; border-bottom: 1px solid var(--border-strong); }
+.lane-labels { grid-column: 2; position: relative; height: 1.2em; font-family: var(--font-num); font-weight: 700; font-size: 0.8em; }
+.lane-labels span { position: absolute; top: 0; transform: translateX(-50%); }
+.rl-row { display: grid; grid-template-columns: 58px 1fr 78px; gap: 0 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.rl-jacket { position: relative; width: 58px; height: 58px; border-radius: 4px; overflow: hidden; background: var(--tile-bg); }
+.rl-jacket .jacket { display: block; }
+.rl-jacket .tile-crown { width: 20px; height: 20px; top: 2px; left: 2px; }
+.rl-jacket .tile-crown .crown-mark { width: 13px; height: 13px; }
+.rl-main { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.rl-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* 難易度の札: 斜めに切った小さな帯 */
+.rl-diff { flex-shrink: 0; display: inline-block; padding: 1px 9px; transform: skewX(-14deg); border-radius: 2px; }
+.rl-diff span { display: inline-block; transform: skewX(14deg); color: #fff; font-family: var(--font-num); font-weight: 700; font-size: 0.72em; letter-spacing: 0.03em; text-shadow: 0 0 2px rgba(0, 0, 0, 0.6); }
+.rl-title { font-weight: bold; font-size: 0.95em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* レーン: 細い線に目盛り、伸びた区間だけ光らせる */
+.lane { position: relative; height: 12px; }
+.lane::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; border-radius: 1px; background: var(--chart-grid); }
+.lane-tick { position: absolute; top: 1px; bottom: 1px; width: 1px; margin-left: -0.5px; background: var(--border-strong); }
+.lane-gain { position: absolute; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; background: var(--chart-line); box-shadow: 0 0 6px var(--chart-line); }
+.lane-dot { position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; box-sizing: border-box; }
+.lane-dot.prev { border: 2px solid var(--text-muted); background: var(--capture-solid); }
+.lane-dot.now { background: currentColor; box-shadow: 0 0 0 2px var(--capture-solid); }
+.rl-scores { display: flex; align-items: baseline; gap: 6px; font-family: var(--font-num); font-size: 0.95em; white-space: nowrap; }
+.rl-prev { color: var(--text-muted); }
+.rl-arrow { color: var(--text-faint); }
+.rl-scores b { font-weight: 700; }
+.rl-pot { margin-left: auto; color: var(--text-muted); font-size: 0.9em; }
+.rl-side { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
+.rl-grade { font-family: var(--font-num); font-weight: 700; font-size: 1.3em; line-height: 1; }
+.rl-delta { min-height: 1em; font-size: 0.9em; line-height: 1.2; }
+.rl-delta .gr-delta { font-size: 1em; }
+/* 2枚の保存範囲の間 */
+.gr-capture + .gr-capture { margin-top: 28px; }
 .gr-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 18px; }
 .gr-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
 .gr-stat-label { color: var(--text-muted); font-size: 0.85em; font-weight: bold; }
@@ -767,7 +882,11 @@ body.pv-open { overflow: hidden; }
 .gm-chart { padding: 0 8px 8px; }
 .gm-chart .gr-chart { background: none; border: none; padding: 0; }
 .gm-chart .gr-chart-title { display: none; }
+.gm-chart .gr-spark { max-height: 150px; }
 .gm-chart svg { max-height: 150px; }
+.gm-group-title { margin: 14px 0 6px; font-size: 0.8em; color: var(--text-muted); letter-spacing: 0.12em; }
+.gm-stats + .gm-list-title { margin-top: 18px; }
+.gm-view .gm-preview + .gm-songs, .gm-list-title + .gm-preview { margin-top: 4px; }
 .gm-list-title { font-size: 1.05em; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border-strong); }
 .gm-list-title span { color: var(--link); font-size: 0.8em; margin-left: 6px; }
 .gm-song { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--border); }
