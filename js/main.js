@@ -10,6 +10,7 @@ import { enableDetailsSlide } from './motion.js';
 import achievement from './features/achievement.js';
 import summary from './features/summary.js';
 import growth from './features/growth.js';
+import best30 from './features/best30.js';
 import target from './features/target.js';
 import howto, { mountHowto } from './features/howto.js';
 
@@ -18,7 +19,7 @@ import howto, { mountHowto } from './features/howto.js';
 // mount を持たない機能は表(renderBoard)として描画する
 // description を持つ機能はトップページにツールとして並べる
 // needsData: false の機能は all.json なしでも開ける。setMaster(楽曲マスタ) はマスタの読み込み後に呼ばれる
-const FEATURES = [achievement, summary, growth, target, howto];
+const FEATURES = [achievement, summary, growth, best30, target, howto];
 const BOARD_FEATURES = FEATURES.filter(f => !f.mount);
 const TOOL_FEATURES = FEATURES.filter(f => f.description);
 // ジャケットの表に載せるのは定数10.0以上の譜面

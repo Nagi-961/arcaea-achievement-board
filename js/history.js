@@ -30,7 +30,7 @@ function saveHistory(h) {
     }
 }
 
-// "2026/11/25 20:38:26" 形式。読めなければ null
+// "yyyy/mm/dd hh:mm:ss" 形式。読めなければ null
 export function parseCollectedAt(text) {
     if (!text) return null;
     const m = String(text).match(/^(\d{4})\D(\d{1,2})\D(\d{1,2})(?:\D+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);

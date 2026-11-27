@@ -28,6 +28,8 @@ const PATHS = {
     alert: '<path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10v4.5M12 17v.2"/>',
     list: '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="5" cy="6" r="0.8" fill="currentColor"/><circle cx="5" cy="12" r="0.8" fill="currentColor"/><circle cx="5" cy="18" r="0.8" fill="currentColor"/>',
     chevron: '<path d="m7 10 5 5 5-5"/>',
+    podium: '<path d="M3.5 20h17"/><path d="M9 20V7.5h6V20M3.5 20v-8h5.5M15 20v-5.5h5.5V20"/>',
+    crown: '<path d="M4 17.5 3 8l5 3.5L12 5l4 6.5L21 8l-1 9.5z"/><path d="M5 20.5h14"/>',
     zap:'<path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/>',
     box: '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>',
 };
@@ -36,6 +38,11 @@ export function icon(name, cls = '') {
     const body = PATHS[name];
     if (!body) return '';
     return `<svg class="ico${cls ? ' ' + cls : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${body}</svg>`;
+}
+
+// 理論値(MAX)の王冠(プラチナ色)。画像に撮る範囲でも使うので、色を直接書く(撮るときは CSS の色が効かないため)
+export function crownMark(cls = 'crown-mark') {
+    return `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 17.5 3 8l5 3.5L12 5l4 6.5L21 8l-1 9.5z" fill="#e4eefa" stroke="#5d6c82" stroke-width="1.2" stroke-linejoin="round"/><rect x="4.5" y="19" width="15" height="2.2" rx="1" fill="#e4eefa" stroke="#5d6c82" stroke-width="1"/></svg>`;
 }
 
 // 静的な HTML の <span data-icon="名前"> をアイコンに置き換える

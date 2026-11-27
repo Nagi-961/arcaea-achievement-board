@@ -20,13 +20,18 @@ export function gradeOf(score, clear) {
     return 'D';
 }
 
-// all.json の1レコードからランク。未プレイは NO PLAY、PM のうち全ノーツ光った PURE なら MAX
+// 理論値(全ノーツ光った PURE)か。スコア = 10,000,000 + ノーツ数。ノーツ数が分からなければ false
+export function isMaxScore(score, notes) {
+    return notes > 0 && score >= 10000000 + notes;
+}
+
+// all.json の1レコードからランク。未プレイは NO PLAY、PM のうち理論値なら MAX
 export function gradeOfRecord(rec) {
     const score = rec ? rec.score || 0 : 0;
     if (score <= 0) return 'NO PLAY';
     if (rec.clear_type === 3) {
         const totalNotes = (rec.perfect_count || 0) + (rec.near_count || 0) + (rec.miss_count || 0);
-        return (totalNotes > 0 && score >= 10000000 + totalNotes) ? 'MAX' : 'PM';
+        return isMaxScore(score, totalNotes) ? 'MAX' : 'PM';
     }
     return gradeOf(score, null);
 }

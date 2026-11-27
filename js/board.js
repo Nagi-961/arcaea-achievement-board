@@ -1,10 +1,10 @@
 // 実績表(ランク表示 / スコア表示)の、集計表とジャケットタイルの描画
 // PC幅では画像レイアウト(capture-area)をそのまま見せ、スマホ幅ではジャケット付きリストを見せる。
 // スマホで画像を作るときは preview.js が capture-area をプレビューに移して表示・保存する
-import { icon, iconLabel } from './icons.js';
+import { icon, iconLabel, crownMark } from './icons.js';
 import { playPotential } from './calc.js';
 
-export const diffColors = { "FTR": "#9932cc", "ETR": "#d8bfd8", "BYD": "#dc143c", "INS": "#1e90ff", "PST": "#4fc3f7", "PRS": "#81c784" };
+export const diffColors = { "FTR": "#9932cc", "ETR": "#a98be8", "BYD": "#dc143c", "INS": "#1e90ff", "PST": "#4fc3f7", "PRS": "#81c784" };
 // ランクの色。値は css/style.css のテーマごとの変数(ダーク / ライトで切り替わる)
 const BAR = 'var(--tile-bar-bg)';
 const gradeColors = {
@@ -150,7 +150,7 @@ function summaryTableHtml(songs) {
     });
 
     const fmt = v => v > 0 ? v : '<span style="color:var(--g-zero);">-</span>';
-    let html = `<table class="summary-table"><tr><th>Lv</th><th style="color:var(--g-max);">MAX</th><th style="color:var(--g-pm);">PM</th><th style="color:var(--g-exp);">EX+</th><th style="color:var(--g-ex);">EX</th><th style="color:var(--g-aa);">AA</th><th style="color:var(--g-aa);">A</th><th style="color:var(--g-aa);">B-D</th><th style="color:var(--g-np);">NP</th><th>Total</th><th>EX+↑</th></tr>`;
+    let html = `<table class="summary-table"><tr><th>Lv</th><th style="color:var(--g-max);">${crownMark()}MAX</th><th style="color:var(--g-pm);">PM</th><th style="color:var(--g-exp);">EX+</th><th style="color:var(--g-ex);">EX</th><th style="color:var(--g-aa);">AA</th><th style="color:var(--g-aa);">A</th><th style="color:var(--g-aa);">B-D</th><th style="color:var(--g-np);">NP</th><th>Total</th><th>EX+↑</th></tr>`;
     Object.keys(summaryData).sort((a, b) => levelSortKey(a) - levelSortKey(b)).forEach(lvl => {
         const row = summaryData[lvl];
         const total = row.Total;
@@ -169,8 +169,9 @@ function tileHtml(song, style) {
     // 一覧と食い違って見つからなければ、handleCoverError が {song_id}.png → default.png の順に差し替える
     const src = coverSrc(song.song_id, song.difficulty);
     return `
-        <div class="tile${noplayCls}" style="border-color: ${dColor};">
+        <div class="tile diff-${song.difficulty}${noplayCls}" style="border-color: ${dColor};">
             <img src="${src}" class="jacket" alt="${title}" data-song-id="${escapeHtml(song.song_id)}">
+            ${song.grade === 'MAX' ? `<span class="tile-crown">${crownMark()}</span>` : ''}
             ${style.tileBar(song, gColor)}
             <div class="overlay"><div class="o-title" style="--title-size:${titleFontSize(song.title ?? '')}px;">${title}</div>${style.overlayInfo(song, gColor)}</div>
         </div>`;
@@ -182,11 +183,12 @@ const CLEAR_LABELS = { 0: 'TRACK LOST', 1: 'NORMAL CLEAR', 2: 'FULL RECALL', 3: 
 const activeSection = {};
 
 // ランクの色はテーマで変えるので、CSS のクラスで指定する（EX+ → g-EXp, NO PLAY → g-NP）
-function gradeClass(grade) {
+export function gradeClass(grade) {
     return 'g-' + (grade === 'NO PLAY' ? 'NP' : grade.replace('+', 'p'));
 }
 
-function listDetailHtml(song) {
+// タップで開く詳細(実績表・ベスト30のスマホのリストで共通)。withLegacy: 旧基準(ボーナスなし)の単曲ポテンシャルも出す
+export function listDetailHtml(song, { withLegacy = false } = {}) {
     const r = song.record;
     if (!r) return '<div class="bl-detail"><p class="bl-none">まだプレイしていません。</p></div>';
     const played = Number.isFinite(r.time_played) ? new Date(r.time_played).toLocaleDateString('ja-JP') : '-';
@@ -199,6 +201,7 @@ function listDetailHtml(song) {
             </dl>
             <dl class="bl-facts">
                 <div><dt>単曲ポテンシャル</dt><dd>${pot}</dd></div>
+                ${withLegacy ? `<div><dt>旧基準の単曲ポテンシャル</dt><dd>${playPotential(song.constant, r.score, false).toFixed(3)}</dd></div>` : ''}
                 <div><dt>クリア</dt><dd>${CLEAR_LABELS[r.clear] ?? '-'}</dd></div>
                 <div><dt>定数</dt><dd>${song.constant.toFixed(1)}</dd></div>
                 <div><dt>最終プレイ</dt><dd>${played}</dd></div>
@@ -213,13 +216,13 @@ function listRowHtml(song) {
     // タップで開く詳細は <details>。開閉のスライドは motion.js が付ける
     return `<details class="bl-row slide${song.scoreVal === 0 ? ' noplay' : ''}">
             <summary>
-                <img src="${src}" class="jacket bl-jacket" alt="" loading="lazy" data-song-id="${escapeHtml(song.song_id)}" style="border-color:${diffColors[song.difficulty] || '#444'};">
+                <img src="${src}" class="jacket bl-jacket diff-${song.difficulty}" alt="" loading="lazy" data-song-id="${escapeHtml(song.song_id)}" style="border-color:${diffColors[song.difficulty] || '#444'};">
                 <span class="bl-main">
                     <span class="bl-title">${title}</span>
                     <span class="bl-meta"><span class="tg-diff" style="background:${diffColors[song.difficulty] || '#444'};">${song.difficulty}</span> Lv ${escapeHtml(song.level)}</span>
                 </span>
                 <span class="bl-right">
-                    <span class="bl-grade ${gradeClass(song.grade)}">${song.grade}</span>
+                    <span class="bl-grade ${gradeClass(song.grade)}">${song.grade === 'MAX' ? icon('crown', 'crown-ico') : ''}${song.grade}</span>
                     <span class="bl-score">${score}</span>
                 </span>
             </summary>
