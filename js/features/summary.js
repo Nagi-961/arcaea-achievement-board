@@ -1,14 +1,14 @@
 // 達成状況表: 難易度・レベルで絞り込んで、ランクごとの達成数を共有しやすい表にする
 // PC幅では保存用の表をそのまま見せる。スマホ幅ではレベルごとのカード(積み上げバー、タップで内訳)を見せ、
 // 保存は「画像を作る」のプレビュー(preview.js)から行う
-import { icon, iconLabel } from '../icons.js';
+import { icon, iconLabel, crownMark } from '../icons.js';
 import { escapeHtml, levelSortKey, profileHtml } from '../board.js';
 import { exportImage } from '../export.js';
 import { openPreview } from '../preview.js';
 
 const GRADES = [
     // 色は css/style.css のテーマごとの変数
-    { key: 'MAX', label: '理論値', color: 'var(--g-max)', bar: 'var(--g-max)', glow: true },
+    { key: 'MAX', label: 'MAX', color: 'var(--g-max)', bar: 'var(--g-max-bar)', glow: true, crown: true },
     { key: 'PM', label: 'PM', color: 'var(--g-pm)', bar: 'var(--g-pm-bar)' },
     { key: 'EX+', label: 'EX+', color: 'var(--g-exp)', bar: 'var(--g-exp-bar)' },
     { key: 'EX', label: 'EX', color: 'var(--g-ex)', bar: 'var(--g-ex)' },
@@ -76,6 +76,9 @@ function buildRows(songs) {
     return levelsOf(songs).reverse().map(lv => countRow(`Lv ${lv}`, 'var(--text)', songs.filter(s => s.level === lv)));
 }
 
+// MAX(理論値)には王冠を付けて、PM と見分けやすくする
+const gradeLabel = g => (g.crown ? crownMark() : '') + g.label;
+
 const pct = (n, total) => total > 0 ? (n / total * 100).toFixed(1) + '%' : '-';
 
 function barHtml(row) {
@@ -88,7 +91,7 @@ function barHtml(row) {
 function cardCountsHtml(row) {
     return `<dl class="sm-counts">${GRADES.map(g => {
         const n = row.counts[g.key];
-        return `<div${n > 0 ? '' : ' class="zero"'}><dt style="color:${g.color};">${g.label}</dt><dd>${n}</dd></div>`;
+        return `<div${n > 0 ? '' : ' class="zero"'}><dt style="color:${g.color};">${gradeLabel(g)}</dt><dd>${n}</dd></div>`;
     }).join('')}</dl>`;
 }
 
@@ -135,7 +138,7 @@ function mobileHtml(rows, total) {
 }
 
 function legendHtml() {
-    return GRADES.map(g => `<span><i style="background:${g.bar};"></i>${g.label}</span>`).join('');
+    return GRADES.map(g => `<span>${g.crown ? crownMark() : `<i style="background:${g.bar};"></i>`}${g.label}</span>`).join('');
 }
 
 function rowHtml(row, isTotal) {
@@ -188,7 +191,7 @@ function renderTable() {
                 ${profileHtml(profile)}
             </div>
             <table class="summary-big">
-                <tr><th></th>${GRADES.map(g => `<th style="color:${g.color};">${g.label}</th>`).join('')}
+                <tr><th></th>${GRADES.map(g => `<th style="color:${g.color};">${gradeLabel(g)}</th>`).join('')}
                     <th>合計</th><th style="color:var(--g-pm);">PM以上</th><th style="color:var(--g-exp);">EX+以上</th><th>内訳</th></tr>
                 ${rows.map(r => rowHtml(r, false)).join('')}
                 ${rows.length > 1 ? rowHtml(total, true) : ''}
@@ -287,7 +290,7 @@ export default {
     id: 'summary',
     label: '達成状況表',
     icon: 'summary',
-    description: '難易度・レベルごとに、理論値・PM・EX+ などの達成数をまとめた表を作ります。',
+    description: '難易度・レベルごとに、MAX・PM・EX+ などの達成数をまとめた表を作ります。',
     mount,
     update,
 };

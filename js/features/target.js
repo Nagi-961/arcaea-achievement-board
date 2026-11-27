@@ -139,7 +139,7 @@ function calcOutputHtml() {
     const record = records.get(keyOf(chart));
     return `<div class="tg-result">
         <div class="tg-chart">${chartLabel(chart)}</div>
-        <div class="tg-facts">ノーツ数 ${fmt(chart.notes)}　理論値 ${fmt(10000000 + chart.notes)}　目標 <b>${targetText()}</b>　内部精度の失点 ${loss}</div>
+        <div class="tg-facts">ノーツ数 ${fmt(chart.notes)}　MAX ${fmt(10000000 + chart.notes)}　目標 <b>${targetText()}</b>　内部精度の失点 ${loss}</div>
         ${isPmTarget() ? '<p class="tg-note">PM は FAR・LOST 0 が条件です（内部精度は関係ありません）。</p>' : table}
         ${record ? adviceHtml(chart, record, target) : ''}
     </div>`;

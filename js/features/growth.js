@@ -1,14 +1,15 @@
 // 成長記録: 日・週・月・年ごとに、自己ベストを更新した譜面と、ポテンシャル・PM数・EX+数の推移をまとめる
 // PC幅では保存用のレポートをそのまま見せる。スマホ幅では数値のリスト(タップでその推移のグラフ)と
 // 更新した譜面のリストを見せ、保存は「画像を作る」のプレビュー(preview.js)から行う
-import { icon, iconLabel } from '../icons.js';
+import { icon, iconLabel, crownMark } from '../icons.js';
 import { openPreview } from '../preview.js';
 import { escapeHtml, diffColors, profileHtml, handleCoverError, compareTitle, coverSrc } from '../board.js';
 import { exportImage } from '../export.js';
 import { loadHistory } from '../history.js';
-import { playPotential, gradeOf, best30Average, oldMaxPotential } from '../calc.js';
+import { playPotential, gradeOf, isMaxScore, best30Average, oldMaxPotential } from '../calc.js';
 
 const AREA_ID = 'growth-area';
+const RECORDS_AREA_ID = 'growth-records-area';
 const DIFF_NUM = { PST: 0, PRS: 1, FTR: 2, BYD: 3, INS: 3, ETR: 4 };
 const UNITS = [
     { key: 'day', label: '日' },
@@ -85,19 +86,27 @@ function entryBefore(entries, t) {
     return found;
 }
 
+// 譜面のノーツ数。マスタになければ今の記録の PURE + FAR + LOST から求める(理論値の判定に使う)
+function notesOf(song) {
+    if (song.notes) return song.notes;
+    const r = song.record;
+    return r ? r.pure + r.far + r.lost : null;
+}
+
 function statsAt(charts, t) {
-    let pm = 0, exPlus = 0;
+    let max = 0, pm = 0, exPlus = 0;
     const pots = [], oldPots = [];
     charts.forEach(c => {
         const e = entryBefore(c.entries, t);
         if (!e) return;
         if (e[2] === 3) pm++;
+        if (e[2] === 3 && isMaxScore(e[1], c.notes)) max++;
         if (e[1] >= 9900000) exPlus++;
         pots.push(playPotential(c.song.constant, e[1], e[2]));
         // 旧方式の単曲ポテンシャルにはクリアボーナスがない
         oldPots.push(playPotential(c.song.constant, e[1], false));
     });
-    return { pm, exPlus, b30: best30Average(pots), oldMax: oldMaxPotential(oldPots) };
+    return { max, pm, exPlus, b30: best30Average(pots), oldMax: oldMaxPotential(oldPots) };
 }
 
 function ratingAt(history, t) {
@@ -124,10 +133,6 @@ function deltaHtml(value, digits = 0, unit = '') {
     return `<span class="gr-delta ${rounded > 0 ? 'up' : 'down'}">${text}</span>`;
 }
 
-function statCard(label, value, delta) {
-    return `<div class="gr-stat"><div class="gr-stat-label">${label}</div><div class="gr-stat-value">${value}</div><div>${delta || '&nbsp;'}</div></div>`;
-}
-
 // グラフの色。SVG は画像に撮るとき CSS 変数やクラスの色が効かないので、描くときに今のテーマの値を読んで直接書く
 function chartColors() {
     const css = getComputedStyle(document.documentElement);
@@ -135,98 +140,211 @@ function chartColors() {
     return { line: v('--chart-line'), dot: v('--chart-dot'), grid: v('--chart-grid'), axis: v('--text-muted') };
 }
 
-// 1系列だけの小さな折れ線。凡例は付けずタイトルで名前を示す
-function sparkHtml(title, points, format, c) {
-    const W = 240, H = 110, PADX = 14, TOP = 16, BOTTOM = 22;
+// 推移のグラフ(SVG)。kind: 'area' = その時点の値を線+薄い面で / 'bar' = 期間ごとの増えた数を棒で。データがなければ空文字
+// 各期間に縦長の当たり判定(.gr-hit)を置き、タップ・ホバーで数値のフキダシを出す(フキダシは保存範囲の外に出すので画像には写らない)
+// points: [{ label, v, tip }]。tip はフキダシの2行目(値と増減)
+function sparkSvg(label, points, kind, c) {
+    const W = 240, H = 90, PADX = 12, TOP = 10, BOTTOM = 20;
     const vals = points.map(p => p.v).filter(v => v != null);
-    if (vals.length === 0) return `<div class="gr-chart"><div class="gr-chart-title">${title}</div><div class="gr-chart-empty">データなし</div></div>`;
-    let min = Math.min(...vals), max = Math.max(...vals);
-    if (min === max) { min -= 1; max += 1; }
-    const x = i => PADX + (W - PADX * 2) * (points.length === 1 ? 0.5 : i / (points.length - 1));
-    const y = v => TOP + (H - TOP - BOTTOM) * (1 - (v - min) / (max - min));
-    let path = '', pen = false;
-    points.forEach((p, i) => {
-        if (p.v == null) { pen = false; return; }
-        path += `${pen ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`;
-        pen = true;
-    });
+    if (vals.length === 0) return '';
+    const base = H - BOTTOM;
+    const step = (W - PADX * 2) / points.length;
+    const cx = i => PADX + step * (i + 0.5);
+    let bodies;
+    if (kind === 'bar') {
+        // 0 から積む。増えていない期間は細い線だけ
+        const max = Math.max(1, ...vals);
+        const bw = Math.min(16, step * 0.56);
+        bodies = points.map((p, i) => {
+            if (p.v == null) return '';
+            const h = Math.max(1.5, (base - TOP) * p.v / max);
+            return `<rect x="${(cx(i) - bw / 2).toFixed(1)}" y="${(base - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${c.line}" fill-opacity="${p.v > 0 ? (i === points.length - 1 ? 1 : 0.7) : 0.3}"/>`;
+        }).join('');
+    } else {
+        let min = Math.min(...vals), max = Math.max(...vals);
+        if (min === max) { min -= 1; max += 1; }
+        // 下に少し余白を取り、面が底に張り付かないようにする
+        const pad = (max - min) * 0.15;
+        const y = v => TOP + (base - TOP) * (1 - (v - min + pad) / (max - min + pad));
+        const pts = points.map((p, i) => p.v == null ? null : [cx(i), y(p.v)]);
+        const segs = [];
+        let cur = [];
+        pts.forEach(pt => { if (pt) cur.push(pt); else if (cur.length) { segs.push(cur); cur = []; } });
+        if (cur.length) segs.push(cur);
+        const line = segs.map(seg => 'M' + seg.map(([x1, y1]) => `${x1.toFixed(1)},${y1.toFixed(1)}`).join('L')).join('');
+        const area = segs.map(seg => `M${seg[0][0].toFixed(1)},${base}L` + seg.map(([x1, y1]) => `${x1.toFixed(1)},${y1.toFixed(1)}`).join('L') + `L${seg[seg.length - 1][0].toFixed(1)},${base}Z`).join('');
+        const lastPt = pts[pts.length - 1];
+        bodies = `<path d="${area}" fill="${c.line}" fill-opacity="0.16"/>
+            <path d="${line}" fill="none" stroke="${c.line}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+            ${lastPt ? `<circle cx="${lastPt[0].toFixed(1)}" cy="${lastPt[1].toFixed(1)}" r="3.5" fill="${c.line}" stroke="${c.dot}" stroke-width="1.5"/>` : ''}`;
+    }
     const last = points.length - 1;
-    const dots = points.map((p, i) => p.v == null ? '' :
-        `<g class="gr-pt"><circle cx="${x(i)}" cy="${y(p.v)}" r="12" fill="transparent"/>
-            <circle cx="${x(i)}" cy="${y(p.v)}" r="${i === last ? 5 : 4}" fill="${i === last ? c.line : c.dot}" stroke="${c.line}" stroke-width="2"/>
-            <title>${escapeHtml(p.label)}: ${format(p.v)}</title></g>`).join('');
-    const labels = points.map((p, i) => (i === 0 || i === last)
-        ? `<text x="${x(i)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : 'end'}" class="gr-axis" fill="${c.axis}">${escapeHtml(p.label)}</text>` : '').join('');
-    const lastVal = points[last].v;
-    return `<div class="gr-chart"><div class="gr-chart-title">${title}<span>${lastVal == null ? '' : format(lastVal)}</span></div>
-        <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${escapeHtml(title)}の推移">
-            <line x1="${PADX}" x2="${W - PADX}" y1="${H - BOTTOM}" y2="${H - BOTTOM}" stroke="${c.grid}" stroke-width="1"/>
-            <path d="${path}" fill="none" stroke="${c.line}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-            ${dots}${labels}
-        </svg></div>`;
+    const labels = [0, last].map(i => `<text x="${i === 0 ? PADX : W - PADX}" y="${H - 5}" text-anchor="${i === 0 ? 'start' : 'end'}" class="gr-axis" fill="${c.axis}">${escapeHtml(points[i].label)}</text>`).join('');
+    // 当たり判定とガイド線(ガイド線はふだん透明で、選んだ期間だけ CSS で見せる)
+    const hits = points.map((p, i) => `<g class="gr-hit" data-title="${escapeHtml(p.label)}" data-tip="${escapeHtml(p.tip || '')}">
+            <line class="gr-guide" x1="${cx(i).toFixed(1)}" x2="${cx(i).toFixed(1)}" y1="${TOP - 4}" y2="${base}" stroke="${c.axis}" stroke-width="1" stroke-dasharray="2 2" stroke-opacity="0"/>
+            <rect x="${(PADX + step * i).toFixed(1)}" y="0" width="${step.toFixed(1)}" height="${H}" fill="transparent"/>
+        </g>`).join('');
+    return `<svg class="gr-spark" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${escapeHtml(label)}の推移">
+            <line x1="${PADX}" x2="${W - PADX}" y1="${base}" y2="${base}" stroke="${c.grid}" stroke-width="1"/>
+            ${bodies}${labels}${hits}
+        </svg>`;
 }
 
-function songRowHtml(row, i) {
-    const s = row.song;
-    const grade = gradeOf(row.now[1], row.now[2]);
-    let scoreDelta, potDelta;
-    if (row.prev) {
-        scoreDelta = deltaHtml(row.now[1] - row.prev[1]);
-        potDelta = deltaHtml(row.potNow - row.potPrev, 3);
-    } else if (row.isNew) {
-        scoreDelta = potDelta = '<span class="gr-delta new">NEW</span>';
-    } else {
-        scoreDelta = potDelta = '<span class="gr-delta zero">前回不明</span>';
+const signed = (v, digits) => {
+    const r = Number(v.toFixed(digits));
+    if (r === 0) return '±0';
+    return (r > 0 ? '+' : '−') + (digits === 0 ? fmt(Math.abs(r)) : Math.abs(r).toFixed(digits));
+};
+
+// 面グラフの点: その時の値と、前の期間からの増減
+function areaPoints(buckets, key, format, scale = 1) {
+    return buckets.slice(1).map((b, i) => {
+        const v = b[key], prev = buckets[i][key];
+        const delta = v != null && prev != null ? `（${signed((v - prev) / scale, 3)}）` : '';
+        return { label: b.label, v, tip: v == null ? 'データなし' : `${format(v)}${delta}` };
+    });
+}
+
+// 棒グラフの点: その期間に増えた数と、期間の終わりの合計
+function barPoints(buckets, key) {
+    return buckets.slice(1).map((b, i) => {
+        const v = b[key], prev = buckets[i][key];
+        const inc = v != null && prev != null ? Math.max(0, v - prev) : null;
+        return { label: b.label, v: inc, tip: inc == null ? 'データなし' : `${signed(inc, 0)}（合計 ${fmt(v)}）` };
+    });
+}
+
+// 数値カード(推移のグラフ入り)
+function statCard(st) {
+    return `<div class="gr-card">
+            <div class="gr-card-head"><span class="gr-stat-label">${st.crown ? crownMark() : ''}${st.label}</span>${st.delta || ''}</div>
+            <div class="gr-stat-value">${st.value}</div>
+            ${st.chart || '<div class="gr-chart-empty">データなし</div>'}
+        </div>`;
+}
+
+function gradeOfRow(row) {
+    const g = gradeOf(row.now[1], row.now[2]);
+    return g === 'PM' && isMaxScore(row.now[1], row.notes) ? 'MAX' : g;
+}
+
+function deltasOf(row) {
+    if (row.prev) return { score: deltaHtml(row.now[1] - row.prev[1]), pot: deltaHtml(row.potNow - row.potPrev, 3) };
+    if (row.isNew) return { score: '<span class="gr-delta new">NEW</span>', pot: '' };
+    return { score: '<span class="gr-delta zero">前回不明</span>', pot: '' };
+}
+
+// ---- 更新した譜面の画像: ランクの境目のレーンに、前回 → 今回の伸びを描く ----
+// レーンの目盛り(ランクの境目)。pos はレーン上の位置(0〜1)。上位ほど差が見えるよう、AA 未満は詰めて AA・EX・EX+ を同じ幅にする
+const LANE_STOPS = [
+    { score: 8000000, pos: 0 },
+    { score: 9500000, pos: 0.12, label: 'AA', grade: 'AA' },
+    { score: 9800000, pos: 0.38, label: 'EX', grade: 'EX' },
+    { score: 9900000, pos: 0.64, label: 'EX+', grade: 'EXp' },
+    { score: 10000000, pos: 0.9, label: 'PM', grade: 'PM' },
+    { score: 10002500, pos: 1 },
+];
+
+function lanePos(score) {
+    if (score <= LANE_STOPS[0].score) return 0;
+    for (let i = 1; i < LANE_STOPS.length; i++) {
+        const a = LANE_STOPS[i - 1], b = LANE_STOPS[i];
+        if (score <= b.score) return a.pos + (b.pos - a.pos) * (score - a.score) / (b.score - a.score);
     }
-    const src = coverSrc(s.song_id, s.difficulty);
-    return `<tr>
-        <td class="gr-rank">${i + 1}</td>
-        <td class="gr-song">
-            <img class="jacket gr-jacket" src="${src}" alt="" data-song-id="${escapeHtml(s.song_id)}">
-            <div><div class="gr-song-title">${escapeHtml(s.title)}</div>
-            <span class="tg-diff" style="background:${diffColors[s.difficulty] || 'var(--tile-border)'};">${s.difficulty}</span>
-            <span class="gr-song-meta">Lv ${escapeHtml(s.level)} (${s.constant.toFixed(1)})</span></div>
-        </td>
-        <td class="gr-grade gr-g-${grade.replace('+', 'p')}">${grade}</td>
-        <td class="gr-score">${fmt(row.now[1])}<br>${scoreDelta}</td>
-        <td class="gr-pot">${row.potNow.toFixed(3)}<br>${potDelta}</td>
-    </tr>`;
+    return 1;
+}
+
+const pctOf = v => `${(v * 100).toFixed(2)}%`;
+const TICKS = LANE_STOPS.filter(t => t.label).map(t => `<i class="lane-tick" style="left:${pctOf(t.pos)}"></i>`).join('');
+
+function laneHtml(row, grade) {
+    const now = lanePos(row.now[1]);
+    const prev = row.prev ? lanePos(row.prev[1]) : null;
+    const gain = prev != null && now > prev
+        ? `<span class="lane-gain" style="left:${pctOf(prev)};width:${pctOf(now - prev)}"></span>` : '';
+    return `<div class="lane">${TICKS}${gain}
+            ${prev != null ? `<span class="lane-dot prev" style="left:${pctOf(prev)}"></span>` : ''}
+            <span class="lane-dot now g-${grade.replace('+', 'p')}" style="left:${pctOf(now)}"></span>
+        </div>`;
+}
+
+// 各列の先頭に1回だけ出す目盛りの名前
+function laneScaleHtml() {
+    return `<div class="rl-scale"><div class="lane-labels">${LANE_STOPS.filter(t => t.label)
+        .map(t => `<span class="g-${t.grade}" style="left:${pctOf(t.pos)}">${t.label}</span>`).join('')}</div></div>`;
+}
+
+function recordRowHtml(row) {
+    const s = row.song;
+    const grade = gradeOfRow(row);
+    const d = deltasOf(row);
+    const color = diffColors[s.difficulty] || 'var(--tile-border)';
+    const scores = row.prev
+        ? `<span class="rl-prev">${fmt(row.prev[1])}</span><span class="rl-arrow">›</span><b>${fmt(row.now[1])}</b>`
+        : `<b>${fmt(row.now[1])}</b>`;
+    return `<div class="rl-row">
+            <div class="rl-jacket">
+                <img class="jacket" src="${coverSrc(s.song_id, s.difficulty)}" alt="" data-song-id="${escapeHtml(s.song_id)}">
+                ${grade === 'MAX' ? `<span class="tile-crown">${crownMark()}</span>` : ''}
+            </div>
+            <div class="rl-main">
+                <div class="rl-head">
+                    <span class="rl-diff" style="background:${color};"><span>${s.difficulty} ${s.constant.toFixed(1)}</span></span>
+                    <span class="rl-title">${escapeHtml(s.title)}</span>
+                </div>
+                ${laneHtml(row, grade)}
+                <div class="rl-scores">${scores}<span class="rl-pot">pot ${row.potNow.toFixed(3)}</span></div>
+            </div>
+            <div class="rl-side">
+                <span class="rl-grade gr-g-${grade.replace('+', 'p')}">${grade}</span>
+                <span class="rl-delta">${d.score}</span>
+                <span class="rl-delta">${d.pot}</span>
+            </div>
+        </div>`;
+}
+
+// 2列に分けて、左の列の上から順に並べる
+function recordListHtml(shown) {
+    const half = Math.ceil(shown.length / 2);
+    const col = list => `<div class="rl-col">${laneScaleHtml()}${list.map(recordRowHtml).join('')}</div>`;
+    return `<div class="rl-cols">${col(shown.slice(0, half))}${shown.length > half ? col(shown.slice(half)) : ''}</div>`;
 }
 
 // ---- スマホ幅 ----
-// 数値1つ = 1行。タップで下にその推移のグラフを開く(グラフがない項目は開かない)
-function mobileStatHtml(key, label, value, delta, chart) {
-    if (!chart) {
-        return `<div class="gm-stat gm-static"><span class="gm-label">${label}</span><span class="gm-value">${value}</span><span class="gm-delta"></span><span class="gm-chev"></span></div>`;
-    }
-    return `<details class="gm-stat slide" data-key="${key}"${openStats.has(key) ? ' open' : ''}>
-            <summary><span class="gm-label">${label}</span><span class="gm-value">${value}</span><span class="gm-delta">${delta || ''}</span>${icon('chevron', 'gm-chev')}</summary>
-            <div class="slide-body"><div class="gm-chart">${chart}</div></div>
+// 数値1つ = 1行。タップで下にその推移のグラフを開く
+function mobileStatHtml(st) {
+    return `<details class="gm-stat slide" data-key="${st.key}"${openStats.has(st.key) ? ' open' : ''}>
+            <summary><span class="gm-label">${st.crown ? icon('crown', 'crown-ico') : ''}${st.label}</span><span class="gm-value">${st.value}</span><span class="gm-delta">${st.delta || ''}</span>${icon('chevron', 'gm-chev')}</summary>
+            <div class="slide-body"><div class="gm-chart">${st.chart || '<div class="gr-chart-empty">データなし</div>'}</div></div>
         </details>`;
 }
 
 function mobileSongHtml(row) {
     const s = row.song;
-    const grade = gradeOf(row.now[1], row.now[2]);
-    const scoreDelta = row.prev ? deltaHtml(row.now[1] - row.prev[1])
-        : row.isNew ? '<span class="gr-delta new">NEW</span>' : '<span class="gr-delta zero">前回不明</span>';
-    const potDelta = row.prev ? deltaHtml(row.potNow - row.potPrev, 3) : '';
+    const grade = gradeOfRow(row);
+    const d = deltasOf(row);
     return `<div class="gm-song">
-            <img class="jacket gm-jacket" src="${coverSrc(s.song_id, s.difficulty)}" alt="" loading="lazy" data-song-id="${escapeHtml(s.song_id)}" style="border-color:${diffColors[s.difficulty] || 'var(--tile-border)'};">
+            <img class="jacket gm-jacket diff-${s.difficulty}" src="${coverSrc(s.song_id, s.difficulty)}" alt="" loading="lazy" data-song-id="${escapeHtml(s.song_id)}" style="border-color:${diffColors[s.difficulty] || 'var(--tile-border)'};">
             <div class="gm-main">
                 <div class="gm-title">${escapeHtml(s.title)}</div>
                 <div class="gm-meta"><span class="tg-diff" style="background:${diffColors[s.difficulty] || 'var(--tile-border)'};">${s.difficulty}</span> Lv ${escapeHtml(s.level)}
-                    <span class="gm-pot">pot ${row.potNow.toFixed(3)} ${potDelta}</span></div>
+                    <span class="gm-pot">pot ${row.potNow.toFixed(3)} ${d.pot}</span></div>
             </div>
             <div class="gm-right">
-                <span class="gr-g-${grade.replace('+', 'p')} gm-grade">${grade}</span>
+                <span class="gr-g-${grade.replace('+', 'p')} gm-grade">${grade === 'MAX' ? icon('crown', 'crown-ico') : ''}${grade}</span>
                 <span class="gm-score">${fmt(row.now[1])}</span>
-                ${scoreDelta}
+                ${d.score}
             </div>
         </div>`;
 }
 
+function groupsHtml(groups, cardFn) {
+    return groups.map(g => `<section class="gr-group"><h3 class="gr-group-title">${g.title}</h3><div class="gr-cards">${g.stats.map(cardFn).join('')}</div></section>`).join('');
+}
+
 function render() {
+    hideTip();
     view.querySelectorAll('[data-unit]').forEach(b => b.classList.toggle('active', b.dataset.unit === state.unit));
     view.querySelectorAll('[data-sort]').forEach(b => b.classList.toggle('active', b.dataset.sort === state.sort));
     view.querySelector('[data-step="1"]').disabled = state.offset >= 0;
@@ -239,7 +357,7 @@ function render() {
         return;
     }
     const history = loadHistory();
-    const charts = songs.map(song => ({ song, entries: entriesOf(song, history) })).filter(c => c.entries.length > 0);
+    const charts = songs.map(song => ({ song, notes: notesOf(song), entries: entriesOf(song, history) })).filter(c => c.entries.length > 0);
 
     // 期間内に自己ベストを更新した譜面
     const since = history && history.since;
@@ -251,7 +369,7 @@ function render() {
         const prev = entryBefore(c.entries, range.start);
         const potNow = playPotential(c.song.constant, now[1], now[2]);
         rows.push({
-            song: c.song, now, prev, potNow,
+            song: c.song, notes: c.notes, now, prev, potNow,
             potPrev: prev ? playPotential(c.song.constant, prev[1], prev[2]) : null,
             // 履歴を取り始めた後に初めて記録が出た譜面は、初プレイと分かる
             isNew: !prev && since != null && since <= range.start,
@@ -275,61 +393,117 @@ function render() {
     // 推移(選んだ期間を最後に、同じ単位でさかのぼる)
     const n = TREND_BUCKETS[state.unit];
     const buckets = [];
-    for (let k = n - 1; k >= 0; k--) {
+    // 先頭は比較用(1つ前の期間)。グラフには出さない
+    for (let k = n; k >= 0; k--) {
         const r = periodRange(state.unit, state.offset - k);
         const s = statsAt(charts, Math.min(r.end, Date.now() + 1));
-        buckets.push({ label: shortLabel(state.unit, r), b30: s.b30, oldMax: s.oldMax, pm: s.pm, exPlus: s.exPlus, rating: ratingAt(history, r.end) });
+        buckets.push({ label: shortLabel(state.unit, r), ...s, rating: ratingAt(history, r.end) });
     }
-    const series = key => buckets.map(b => ({ label: b.label, v: b[key] }));
     const colors = chartColors();
+    // ポテンシャル系は「今の高さ」なので面、達成数は「期間ごとに増えた数」なので棒
+    const area = (key, label, value, delta, format, scale) =>
+        ({ key, label, value, delta, chart: sparkSvg(label, areaPoints(buckets, key, format, scale), 'area', colors) });
+    const bar = (key, label, value, delta, crown) =>
+        ({ key, label, value, delta, crown, chart: sparkSvg(label, barPoints(buckets, key), 'bar', colors) });
+
+    // 「ポテンシャル(プロフィール系)」と「達成数」の2つにまとめる
+    const groups = [
+        { title: 'ポテンシャル', stats: [
+            area('rating', 'ポテンシャル', fmtRating(ratingEnd), deltaHtml(ratingDelta, 3), fmtRating, 1000),
+            area('b30', 'ベスト30平均', fmtPot(endStats.b30), deltaHtml(diff('b30'), 3), fmtPot),
+            area('oldMax', '旧基準（最大）', fmtPot(endStats.oldMax), deltaHtml(diff('oldMax'), 3), fmtPot),
+        ] },
+        { title: '達成数', stats: [
+            bar('max', 'MAX', fmt(endStats.max), deltaHtml(endStats.max - startStats.max), true),
+            bar('pm', 'PM', fmt(endStats.pm), deltaHtml(endStats.pm - startStats.pm)),
+            bar('exPlus', 'EX+ 以上', fmt(endStats.exPlus), deltaHtml(endStats.exPlus - startStats.exPlus)),
+        ] },
+    ];
 
     const shown = rows.slice(0, LIST_LIMIT);
     const sortLabel = SORTS.find(s => s.key === state.sort).label;
-    const stats = [
-        { key: 'rating', label: 'ポテンシャル', value: fmtRating(ratingEnd), delta: deltaHtml(ratingDelta, 3), chart: sparkHtml('ポテンシャル', series('rating'), fmtRating, colors) },
-        { key: 'b30', label: 'ベスト30平均', value: fmtPot(endStats.b30), delta: deltaHtml(diff('b30'), 3), chart: sparkHtml('ベスト30平均', series('b30'), fmtPot, colors) },
-        { key: 'oldMax', label: '旧基準（最大）', value: fmtPot(endStats.oldMax), delta: deltaHtml(diff('oldMax'), 3), chart: sparkHtml('旧基準（最大）', series('oldMax'), fmtPot, colors) },
-        { key: 'pm', label: 'PM 数', value: fmt(endStats.pm), delta: deltaHtml(endStats.pm - startStats.pm), chart: sparkHtml('PM 数', series('pm'), fmt, colors) },
-        { key: 'exPlus', label: 'EX+ 以上', value: fmt(endStats.exPlus), delta: deltaHtml(endStats.exPlus - startStats.exPlus), chart: sparkHtml('EX+ 以上', series('exPlus'), fmt, colors) },
-        { key: 'rows', label: '更新した譜面', value: fmt(rows.length), delta: '', chart: null },
-    ];
+    const periodText = `${escapeHtml(periodLabel(state.unit, range))}　${UNITS.find(u => u.key === state.unit).label}間`;
+    const more = rows.length > shown.length ? `<p class="gr-more">ほか ${rows.length - shown.length} 譜面</p>` : '';
+    const noRows = '<p class="summary-empty">この期間に更新した譜面はありません。</p>';
     out.innerHTML = `
         <div class="capture-wrap">
         <div id="${AREA_ID}" class="gr-capture">
             <div class="summary-head">
                 <div>
                     <h1>Arcaea Growth Report</h1>
-                    <div class="summary-cond">${escapeHtml(periodLabel(state.unit, range))}　${UNITS.find(u => u.key === state.unit).label}間</div>
+                    <div class="summary-cond">${periodText}</div>
                 </div>
                 ${profileHtml(profile)}
             </div>
-            <div class="gr-stats">
-                ${stats.map(st => statCard(st.label, st.value, st.delta)).join('')}
+            ${groupsHtml(groups, statCard)}
+            <p class="gr-chart-note">グラフ: ポテンシャルは各期間の終わりの値、達成数は各期間に増えた数</p>
+        </div>
+        <div id="${RECORDS_AREA_ID}" class="gr-capture gr-records">
+            <div class="summary-head">
+                <div>
+                    <h1>Arcaea New Records</h1>
+                    <div class="summary-cond">${periodText}　自己ベスト更新 ${fmt(rows.length)} 譜面</div>
+                </div>
+                ${profileHtml(profile)}
             </div>
-            <div class="gr-charts">
-                ${stats.filter(st => st.chart).map(st => st.chart).join('')}
-            </div>
-            <h2 class="gr-list-title">自己ベストを更新した譜面 <span>${escapeHtml(sortLabel)}</span></h2>
-            ${rows.length === 0 ? '<p class="summary-empty">この期間に更新した譜面はありません。</p>' : `
-            <table class="gr-table">
-                <tr><th>#</th><th>譜面</th><th>ランク</th><th>スコア</th><th>単曲pot</th></tr>
-                ${shown.map(songRowHtml).join('')}
-            </table>
-            ${rows.length > shown.length ? `<p class="gr-more">ほか ${rows.length - shown.length} 譜面</p>` : ''}`}
+            <p class="gr-rec-sort">${escapeHtml(sortLabel)}</p>
+            ${rows.length === 0 ? noRows : `${recordListHtml(shown)}${more}`}
         </div>
         </div>
         <div class="gm-view">
-            <button class="btn-preview gm-preview" type="button">${iconLabel('camera', '画像を作る')}</button>
-            <p class="gm-period">${escapeHtml(periodLabel(state.unit, range))}　${UNITS.find(u => u.key === state.unit).label}間</p>
-            <div class="gm-stats">${stats.map(st => mobileStatHtml(st.key, st.label, st.value, st.delta, st.chart)).join('')}</div>
-            <h2 class="gm-list-title">自己ベストを更新した譜面 <span>${escapeHtml(sortLabel)}</span></h2>
-            ${rows.length === 0 ? '<p class="summary-empty">この期間に更新した譜面はありません。</p>'
+            <p class="gm-period">${periodText}</p>
+            <button class="btn-preview gm-preview" type="button" data-area="${AREA_ID}">${iconLabel('camera', 'レポートの画像を作る')}</button>
+            ${groups.map(g => `<h3 class="gm-group-title">${g.title}</h3><div class="gm-stats">${g.stats.map(mobileStatHtml).join('')}</div>`).join('')}
+            <h2 class="gm-list-title">自己ベストを更新した譜面（${fmt(rows.length)}） <span>${escapeHtml(sortLabel)}</span></h2>
+            <button class="btn-preview gm-preview" type="button" data-area="${RECORDS_AREA_ID}">${iconLabel('camera', '更新譜面の画像を作る')}</button>
+            ${rows.length === 0 ? noRows
                 : `<div class="gm-songs">${shown.map(mobileSongHtml).join('')}</div>
                    ${rows.length > shown.length ? `<p class="gr-more">ほか ${rows.length - shown.length} 譜面（画像には上位 ${LIST_LIMIT} 件）</p>` : ''}`}
         </div>
-        <p class="tg-note">※ ポテンシャルは all.json を読み込んだ時点の公式の値です。ベスト30平均・旧基準・PM 数・EX+ 数は記録から計算しています。
+        <p class="tg-note">※ ポテンシャルは all.json を読み込んだ時点の公式の値です。ベスト30平均・旧基準・MAX・PM・EX+ の数は記録から計算しています。
             ベスト30平均は単曲ポテンシャル上位30の単純平均、旧基準（最大）は旧方式（クリアボーナスなし）で上位10を2倍して ÷40 した値（リセント枠をベスト上位10とみなした到達可能な最大値）です。
+            MAX(理論値)はノーツ数が分かる譜面だけ数えています。
             ${since ? `履歴を取り始めた ${ymd(new Date(since))} より前の値は今の自己ベストからの推定なので、実際より低く出ることがあります。` : ''}</p>`;
+}
+
+// 保存する画像: レポート(数値)と、更新した譜面のタイル
+const EXPORTS = {
+    [AREA_ID]: { file: unit => `arcaea_growth_${unit}.png`, label: '成長記録（レポート）' },
+    [RECORDS_AREA_ID]: { file: unit => `arcaea_growth_records_${unit}.png`, label: '成長記録（更新譜面）' },
+};
+
+// ---- グラフの数値のフキダシ ----
+let tip = null, activeHit = null;
+
+function hideTip() {
+    activeHit?.classList.remove('active');
+    activeHit = null;
+    tip?.remove();
+    tip = null;
+}
+
+function showTip(hit) {
+    if (hit === activeHit) return;
+    hideTip();
+    activeHit = hit;
+    hit.classList.add('active');
+    // 保存範囲に写らないよう body に置き、画面に固定する
+    tip = document.createElement('div');
+    tip.className = 'gr-tip';
+    const t = document.createElement('div');
+    t.className = 'gr-tip-title';
+    t.textContent = hit.dataset.title;
+    const v = document.createElement('div');
+    v.className = 'gr-tip-value';
+    v.textContent = hit.dataset.tip;
+    tip.append(t, v);
+    document.body.appendChild(tip);
+    const guide = hit.querySelector('.gr-guide').getBoundingClientRect();
+    const box = tip.getBoundingClientRect();
+    const left = Math.min(window.innerWidth - box.width - 8, Math.max(8, guide.left - box.width / 2));
+    const top = guide.top - box.height - 8;
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top < 8 ? guide.bottom + 8 : top}px`;
 }
 
 function mount(container) {
@@ -346,21 +520,22 @@ function mount(container) {
                 </div>
                 <div class="summary-control"><span class="summary-label">並び</span><div class="chips">
                     ${SORTS.map(s => `<button type="button" class="chip" data-sort="${s.key}">${s.label}</button>`).join('')}</div></div>
-                <button type="button" class="btn-summary-export">${iconLabel('camera', '画像を保存')}</button>
+                <button type="button" class="btn-summary-export" data-area="${AREA_ID}">${iconLabel('camera', 'レポートを保存')}</button>
+                <button type="button" class="btn-summary-export" data-area="${RECORDS_AREA_ID}">${iconLabel('camera', '更新譜面を保存')}</button>
             </div>
             <div class="gr-output"></div>
         </div>`;
     container.addEventListener('click', e => {
         const b = e.target.closest('button');
         if (!b) return;
+        const ex = EXPORTS[b.dataset.area];
         if (b.dataset.unit) { state.unit = b.dataset.unit; state.offset = 0; render(); }
         else if (b.dataset.step) { state.offset = Math.min(0, state.offset + Number(b.dataset.step)); render(); }
         else if (b.dataset.sort) { state.sort = b.dataset.sort; render(); }
-        else if (b.classList.contains('btn-summary-export') && document.getElementById(AREA_ID)) {
-            exportImage(AREA_ID, `arcaea_growth_${state.unit}.png`, b, profile);
-        }
-        else if (b.classList.contains('gm-preview') && document.getElementById(AREA_ID)) {
-            openPreview(AREA_ID, `arcaea_growth_${state.unit}.png`, '成長記録', profile);
+        else if (ex && document.getElementById(b.dataset.area)) {
+            hideTip();
+            if (b.classList.contains('btn-summary-export')) exportImage(b.dataset.area, ex.file(state.unit), b, profile);
+            else if (b.classList.contains('gm-preview')) openPreview(b.dataset.area, ex.file(state.unit), ex.label, profile);
         }
     });
     // スマホ幅: 開いているグラフを覚えておく(toggle はバブリングしないので capture で受ける)
@@ -372,6 +547,20 @@ function mount(container) {
     container.addEventListener('error', handleCoverError, true);
     // テーマを切り替えたら、グラフの色を描き直す
     document.addEventListener('themechange', () => render());
+    // グラフ: マウスは乗せている間、指はタップで数値を出す。ほかの場所を触るか、スクロールしたら消す
+    container.addEventListener('pointerover', e => {
+        const hit = e.target.closest('.gr-hit');
+        if (hit && e.pointerType === 'mouse') showTip(hit);
+    });
+    container.addEventListener('pointerout', e => {
+        if (e.pointerType === 'mouse' && e.target.closest('.gr-spark') && !e.relatedTarget?.closest?.('.gr-spark')) hideTip();
+    });
+    document.addEventListener('pointerdown', e => {
+        const hit = e.target.closest?.('.gr-hit');
+        if (hit && view.contains(hit)) showTip(hit);
+        else hideTip();
+    });
+    window.addEventListener('scroll', hideTip, { passive: true });
     render();
 }
 
