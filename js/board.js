@@ -39,12 +39,25 @@ export async function loadCoverList() {
 }
 
 // ジャケットの URL。一覧があれば {song_id}_{難易度} → {song_id} → default を最初から選び、404 のリクエストを出さない
+// 時間帯でジャケットが変わる曲(例: melodyoflove)は {song_id}_LIGHT / {song_id}_DARK を置き、今のテーマに合わせて選ぶ
+const themeSuffix = () => document.documentElement.dataset.theme === 'light' ? 'LIGHT' : 'DARK';
+
 export function coverSrc(songId, difficulty) {
     const id = encodeURIComponent(songId);
     if (!coverList || coverList.has(`${songId}_${difficulty}`)) return `${COVER_DIR}/${id}_${difficulty}.png`;
+    const themed = `${songId}_${themeSuffix()}`;
+    if (coverList.has(themed)) return `${COVER_DIR}/${encodeURIComponent(themed)}.png`;
     if (coverList.has(songId)) return `${COVER_DIR}/${id}.png`;
     return `${COVER_DIR}/default.png`;
 }
+
+// テーマを切り替えたら、テーマ別のジャケットだけ差し替える(表を描き直さずに済む)
+document.addEventListener('themechange', () => {
+    const next = themeSuffix(), prev = next === 'LIGHT' ? 'DARK' : 'LIGHT';
+    document.querySelectorAll(`img.jacket[src$="_${prev}.png"]`).forEach(img => {
+        img.src = img.getAttribute('src').replace(new RegExp(`_${prev}\\.png$`), `_${next}.png`);
+    });
+});
 
 // ジャケットオフ（黒地に曲名＋ランク/スコア）の設定。ランク表示とスコア表示で共有し、ブラウザに覚えさせる
 const COVERS_OFF_KEY = 'arcaea_covers_off_v1';
