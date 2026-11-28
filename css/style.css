@@ -560,13 +560,16 @@ body.pv-open { overflow: hidden; }
 }
 .pv-row { display: flex; align-items: center; gap: 10px; }
 .pv-close { display: grid; place-items: center; padding: 0; transition: transform 0.15s; width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; background: var(--surface-2); color: var(--text); border: 1px solid var(--border-strong); font-size: 1.1em; cursor: pointer; }
-.pv-title { flex: 1; min-width: 0; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-title { flex: 1; min-width: 0; font-weight: bold; font-size: 0.92em; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; word-break: normal; overflow-wrap: anywhere; }
 .pv-save { position: static; margin: 0; flex-shrink: 0; }
 .pv-zoom .chip { padding: 6px 16px; }
 .pv-cover { position: static; margin: 0 0 0 auto; padding: 6px 12px; font-size: 0.8em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pv-stage { position: relative; flex: 1; overflow: auto; padding: 12px; -webkit-overflow-scrolling: touch; }
 .pv-stage .capture-area { margin: 0; }
 .pv-stage.fit { overflow-x: hidden; }
+/* 共有と保存は画面の下(指が届きやすく、上の題名を狭めない) */
+.pv-actions { position: relative; display: flex; gap: 10px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--border); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.pv-actions > button { flex: 1; justify-content: center; padding-top: 12px; padding-bottom: 12px; }
 
 
 .export-modal { animation: viewIn 0.3s ease-out; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(4, 4, 16, 0.92); z-index: 100000; display: flex; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
@@ -875,7 +878,7 @@ body.pv-open { overflow: hidden; }
    ========================================================= */
 .sm-view, .gm-view { display: none; }
 @media (max-width: 768px) {
-    .summary-output .capture-wrap, .gr-output .capture-wrap, .summary-tool .btn-summary-export, .gr-tool .btn-summary-export { display: none; }
+    .summary-output .capture-wrap, .gr-output .capture-wrap, .summary-tool .btn-summary-export, .gr-tool .btn-summary-export, .summary-tool .btn-share, .gr-tool .btn-share { display: none; }
     .sm-view, .gm-view { display: block; }
     #view-growth .gr-output { overflow-x: visible; }
 }
@@ -1081,8 +1084,6 @@ body.pv-open { overflow: hidden; }
 .btn-share:hover::before { background: var(--btn-face-hover); }
 .btn-share.busy { filter: grayscale(1) brightness(0.8); }
 .pv-share { --tip-base: 7px; padding: 8px calc(8px + var(--tip)); }
-.pv-row .pv-share { margin-left: auto; }
-.pv-row .pv-share + .pv-save { margin-left: 0; }
 
 .share-modal { position: fixed; inset: 0; z-index: 60000; display: grid; place-items: center; padding: 16px; background: var(--overlay-bg); animation: viewIn 0.25s ease-out; }
 .share-card { width: min(460px, 100%); max-height: calc(100vh - 32px); overflow: auto; box-sizing: border-box; padding: 18px; background: var(--surface-solid); border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 12px; }

@@ -53,8 +53,6 @@ export function openPreview(areaId, filename, label, profile) {
             <div class="pv-row">
                 <button class="pv-close" type="button" aria-label="閉じる">${icon('close')}</button>
                 <span class="pv-title"></span>
-                <button class="btn-share pv-share" type="button">${iconLabel('share', '共有')}</button>
-                <button class="btn-export pv-save" type="button">${iconLabel('camera', '保存')}</button>
             </div>
             <div class="pv-row">
                 <div class="chips pv-zoom">
@@ -64,7 +62,11 @@ export function openPreview(areaId, filename, label, profile) {
                 ${hasCovers ? `<button class="btn-cover-toggle pv-cover" type="button" aria-pressed="${off}">${coverToggleLabel(off)}</button>` : ''}
             </div>
         </div>
-        <div class="pv-stage"></div>`;
+        <div class="pv-stage"></div>
+        <div class="pv-actions">
+            <button class="btn-share pv-share" type="button">${iconLabel('share', '共有')}</button>
+            <button class="btn-export pv-save" type="button">${iconLabel('camera', '保存')}</button>
+        </div>`;
     modal.querySelector('.pv-title').textContent = label;
 
     current = {

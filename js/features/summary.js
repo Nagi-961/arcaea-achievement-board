@@ -123,7 +123,7 @@ function cardHtml(row) {
 function mobileHtml(rows, total) {
     const r = rates(total);
     return `<div class="sm-view">
-            <button class="btn-preview sm-preview" type="button">${iconLabel('camera', '画像を作る')}</button>
+            <button class="btn-preview sm-preview" type="button">${iconLabel('camera', '画像を作る・共有')}</button>
             <p class="sm-cond">${escapeHtml(conditionText())}</p>
             <div class="sm-total">
                 <div class="sm-total-nums">

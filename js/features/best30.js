@@ -120,7 +120,7 @@ function render() {
         </div>
         </div>
         <div class="sm-view">
-            <button class="btn-preview b30-preview" type="button">${iconLabel('camera', '画像を作る')}</button>
+            <button class="btn-preview b30-preview" type="button">${iconLabel('camera', '画像を作る・共有')}</button>
             <p class="sm-cond">${facts.join('　')}</p>
             <div class="b30-list">${top.map((e, i) => mobileRowHtml(e, i, state.mode)).join('')}</div>
         </div>`;

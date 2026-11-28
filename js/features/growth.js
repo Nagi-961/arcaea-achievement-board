@@ -453,10 +453,10 @@ function render() {
         </div>
         <div class="gm-view">
             <p class="gm-period">${periodText}</p>
-            <button class="btn-preview gm-preview" type="button" data-area="${AREA_ID}">${iconLabel('camera', 'レポートの画像を作る')}</button>
+            <button class="btn-preview gm-preview" type="button" data-area="${AREA_ID}">${iconLabel('camera', 'レポートの画像を作る・共有')}</button>
             ${groups.map(g => `<h3 class="gm-group-title">${g.title}</h3><div class="gm-stats">${g.stats.map(mobileStatHtml).join('')}</div>`).join('')}
             <h2 class="gm-list-title">自己ベストを更新した譜面（${fmt(rows.length)}） <span>${escapeHtml(sortLabel)}</span></h2>
-            <button class="btn-preview gm-preview" type="button" data-area="${RECORDS_AREA_ID}">${iconLabel('camera', '更新譜面の画像を作る')}</button>
+            <button class="btn-preview gm-preview" type="button" data-area="${RECORDS_AREA_ID}">${iconLabel('camera', '更新譜面の画像を作る・共有')}</button>
             ${rows.length === 0 ? noRows
                 : `<div class="gm-songs">${shown.map(mobileSongHtml).join('')}</div>
                    ${rows.length > shown.length ? `<p class="gr-more">ほか ${rows.length - shown.length} 譜面（画像には上位 ${LIST_LIMIT} 件）</p>` : ''}`}

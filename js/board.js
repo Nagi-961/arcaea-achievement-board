@@ -261,7 +261,7 @@ function listSectionHtml(sec, grouped, style, areaId, active) {
         return `<div class="bl-group"><h3 class="bl-cc">CC ${c.toFixed(1)}<span>${grouped[c].length} 譜面</span></h3>${rows}</div>`;
     }).join('');
     return `<div class="bl-section" data-sec="${sec.key}"${active ? '' : ' hidden'}>
-            <button class="btn-preview" type="button" data-area="${areaId}" data-label="実績表（${sec.label}・${style.label}）" data-filename="arcaea_${style.key}_${sec.key}.png">${iconLabel('camera', `${sec.label} の画像を作る`)}</button>
+            <button class="btn-preview" type="button" data-area="${areaId}" data-label="実績表（${sec.label}・${style.label}）" data-filename="arcaea_${style.key}_${sec.key}.png">${iconLabel('camera', `${sec.label} の画像を作る・共有`)}</button>
             ${groups}
         </div>`;
 }

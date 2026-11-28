@@ -23,6 +23,12 @@ async function copyImage(blob) {
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
 }
 
+// スマホで、端末の共有メニューに画像ごと渡せるか。
+// (X・Discord・LINE へは、これがいちばん確実に画像と文章の両方を渡せる。PC の共有メニューは送り先が少ないので使わない)
+function canShareNative(file) {
+    return isMobile() && Boolean(navigator.canShare && navigator.canShare({ files: [file] }));
+}
+
 let openDialog = null;
 
 function closeShare() {
@@ -37,8 +43,7 @@ function openShare(blob, filename, label) {
     closeShare();
     const text = shareText(label);
     const file = new File([blob], filename, { type: 'image/png' });
-    // 端末の共有メニュー(スマホ)で画像ごと送れるか
-    const nativeOk = Boolean(navigator.canShare && navigator.canShare({ files: [file] }));
+    const nativeOk = canShareNative(file);
     const url = URL.createObjectURL(blob);
     const modal = document.createElement('div');
     modal.className = 'share-modal';
@@ -53,18 +58,17 @@ function openShare(blob, filename, label) {
             </div>
             <img class="share-thumb" alt="">
             <textarea class="share-text" readonly rows="3"></textarea>
-            ${nativeOk ? `<button type="button" class="btn-summary-export share-native" data-act="native">${iconLabel('share', 'アプリを選んで共有(X・Discord・LINE など)')}</button>` : ''}
+            ${nativeOk ? `<button type="button" class="btn-summary-export share-native" data-act="native">${iconLabel('share', 'アプリを選んで共有(X・Discord・LINE など)')}</button>` : `
             <div class="share-opts">
                 <button type="button" class="chip share-opt" data-act="x">X に投稿</button>
-                <button type="button" class="chip share-opt" data-act="line">LINE で送る</button>
                 ${canCopyImage() ? `<button type="button" class="chip share-opt" data-act="copy">${iconLabel('copy', '画像をコピー')}</button>` : ''}
                 <button type="button" class="chip share-opt" data-act="text">${iconLabel('copy', '文章をコピー')}</button>
                 <button type="button" class="chip share-opt" data-act="save">${iconLabel('download', '保存')}</button>
-            </div>
+            </div>`}
             <p class="share-status" role="status"></p>
-            <p class="share-hint">${canCopyImage()
-                ? 'Discord は「画像をコピー」してから、チャット欄に貼り付けてください。'
-                : '画像を添付するときは、先に「保存」してから各アプリで選んでください。'}</p>
+            ${nativeOk ? '' : `<p class="share-hint">${canCopyImage()
+                ? 'Discord・LINE などは「画像をコピー」してから、チャット欄に貼り付けてください。'
+                : '画像を添付するときは、先に「保存」してから各アプリで選んでください。'}</p>`}
         </div>`;
     modal.querySelector('.share-thumb').src = url;
     modal.querySelector('.share-text').value = text;
@@ -87,12 +91,6 @@ function openShare(blob, filename, label) {
                 window.open(`https://x.com/intent/post?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
                 say(copied ? '画像をコピーしました。投稿画面で貼り付け(Ctrl+V)してください。'
                     : '投稿画面を開きました。画像は「保存」してから添付してください。');
-            } else if (act === 'line') {
-                const lineUrl = isMobile()
-                    ? `https://line.me/R/share?text=${encodeURIComponent(text)}`
-                    : `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(siteUrl())}&text=${encodeURIComponent(text)}`;
-                window.open(lineUrl, '_blank', 'noopener');
-                say('LINE を開きました。画像は「保存」または「画像をコピー」してから送ってください。');
             } else if (act === 'copy') {
                 await copyImage(blob);
                 say('画像をコピーしました。送りたいところで貼り付けてください。');
@@ -124,7 +122,19 @@ export async function shareImage(areaId, filename, label, btn, profile) {
     try {
         const canvas = await captureCanvas(areaId);
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        openShare(blob, imageFilename(filename, profile), label);
+        const name = imageFilename(filename, profile);
+        // スマホはすぐ共有メニューを開く。画像を作る間に「押した直後」でなくなって断られたら、
+        // 共有の画面を出して、もう一度押してもらう
+        const file = new File([blob], name, { type: 'image/png' });
+        if (canShareNative(file)) {
+            try {
+                await navigator.share({ files: [file], text: shareText(label) });
+                return;
+            } catch (err) {
+                if (err && err.name === 'AbortError') return; // 共有メニューを閉じただけ
+            }
+        }
+        openShare(blob, name, label);
     } catch (err) {
         alert('画像生成中にエラーが発生しました。\n' + err);
     } finally {
