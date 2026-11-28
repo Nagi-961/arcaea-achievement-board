@@ -28,6 +28,7 @@ const PATHS = {
     alert: '<path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10v4.5M12 17v.2"/>',
     list: '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="5" cy="6" r="0.8" fill="currentColor"/><circle cx="5" cy="12" r="0.8" fill="currentColor"/><circle cx="5" cy="18" r="0.8" fill="currentColor"/>',
     chevron: '<path d="m7 10 5 5 5-5"/>',
+    share: '<circle cx="17.5" cy="6" r="2.5"/><circle cx="6.5" cy="12" r="2.5"/><circle cx="17.5" cy="18" r="2.5"/><path d="m8.7 10.8 6.6-3.6M8.7 13.2l6.6 3.6"/>',
     phone: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>',
     monitor: '<rect x="3.5" y="4.5" width="17" height="11" rx="1.5"/><path d="M9 19.5h6M12 15.5v4"/>',
     bookmark: '<path d="M7 4h10v16l-5-3.5L7 20z"/>',

@@ -3,6 +3,7 @@
 // 「全体」は画面幅に合わせて CSS の zoom で縮小する。保存するときは縮小を外して撮るので画像には影響しない
 import { icon, iconLabel } from './icons.js';
 import { exportImage } from './export.js';
+import { shareImage } from './share.js';
 import { isCoversOff, setCoversOff, coverToggleLabel } from './board.js';
 
 let current = null; // { modal, area, width, home, next, zoom, onResize, onKey }
@@ -52,6 +53,7 @@ export function openPreview(areaId, filename, label, profile) {
             <div class="pv-row">
                 <button class="pv-close" type="button" aria-label="閉じる">${icon('close')}</button>
                 <span class="pv-title"></span>
+                <button class="btn-share pv-share" type="button">${iconLabel('share', '共有')}</button>
                 <button class="btn-export pv-save" type="button">${iconLabel('camera', '保存')}</button>
             </div>
             <div class="pv-row">
@@ -88,12 +90,13 @@ export function openPreview(areaId, filename, label, profile) {
             applyZoom();
             return;
         }
-        const save = e.target.closest('.pv-save');
+        const save = e.target.closest('.pv-save, .pv-share');
         if (save && !save.classList.contains('busy')) {
             // 縮小したままだと画像も小さく撮れてしまうので、撮る間だけ等倍に戻す
             area.style.zoom = '';
             try {
-                await exportImage(areaId, filename, save, profile);
+                if (save.classList.contains('pv-share')) await shareImage(areaId, filename, label, save, profile);
+                else await exportImage(areaId, filename, save, profile);
             } finally {
                 if (current && current.area === area) applyZoom();
             }

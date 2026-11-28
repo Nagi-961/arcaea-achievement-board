@@ -4,6 +4,7 @@ import { exportImage, exportJson } from './export.js';
 import { loadHistory, recordHistory, importHistory } from './history.js';
 import { renderBoard, handleCoverError, isCoversOff, setCoversOff, handleListTab, handleStyleSwitch, loadCoverList } from './board.js';
 import { openPreview } from './preview.js';
+import { shareImage } from './share.js';
 import { gradeOfRecord } from './calc.js';
 import { icon, iconLabel, mountIcons } from './icons.js';
 import { enableDetailsSlide, mountSeg } from './motion.js';
@@ -236,6 +237,8 @@ function buildViews() {
             view.addEventListener('click', e => {
                 const btn = e.target.closest('.btn-export');
                 if (btn) exportImage(btn.dataset.area, btn.dataset.filename, btn, playerProfile);
+                const share = e.target.closest('.btn-share');
+                if (share) shareImage(share.dataset.area, share.dataset.filename, share.dataset.label, share, playerProfile);
                 if (e.target.closest('.btn-cover-toggle')) setCoversOff(!isCoversOff());
                 // ランク表示 / スコア表示の切り替え
                 if (handleStyleSwitch(e, f)) { renderBoardView(f); return; }

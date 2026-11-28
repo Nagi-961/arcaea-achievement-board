@@ -5,6 +5,7 @@ import { icon, iconLabel, crownMark } from '../icons.js';
 import { escapeHtml, diffColors, profileHtml, handleCoverError, coverSrc, gradeClass, listDetailHtml } from '../board.js';
 import { exportImage } from '../export.js';
 import { openPreview } from '../preview.js';
+import { shareImage, shareButtonHtml } from '../share.js';
 import { playPotential, best30Average, oldMaxPotential } from '../calc.js';
 
 const AREA_ID = 'best30-area';
@@ -132,7 +133,7 @@ function mount(container) {
             <div class="summary-controls">
                 <div class="summary-control"><span class="summary-label">基準</span><div class="chips">
                     ${MODES.map(m => `<button type="button" class="chip" data-mode="${m.key}">${m.label}</button>`).join('')}</div></div>
-                <button type="button" class="btn-summary-export">${iconLabel('camera', '画像を保存')}</button>
+                <div class="export-row"><button type="button" class="btn-summary-export">${iconLabel('camera', '画像を保存')}</button>${shareButtonHtml()}</div>
                 <p class="summary-note">新基準: クリアボーナス(+0.2)込みの単曲ポテンシャルで上位30。旧基準: ボーナスなしで並べ、上位10を2倍して ÷40 した値(ゲームの旧方式で、リセント枠をベスト上位10とみなしたもの)。</p>
             </div>
             <div class="summary-output"></div>
@@ -144,6 +145,7 @@ function mount(container) {
         if (b.dataset.mode) { state.mode = b.dataset.mode; render(); }
         else if (!document.getElementById(AREA_ID)) return;
         else if (b.classList.contains('btn-summary-export')) exportImage(AREA_ID, mode.file, b, profile);
+        else if (b.classList.contains('btn-share')) shareImage(AREA_ID, mode.file, `ベスト30（${mode.label}）`, b, profile);
         else if (b.classList.contains('b30-preview')) openPreview(AREA_ID, mode.file, `ベスト30（${mode.label}）`, profile);
     });
     container.addEventListener('error', handleCoverError, true);

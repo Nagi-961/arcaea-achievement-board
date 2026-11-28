@@ -5,6 +5,7 @@ import { icon, iconLabel, crownMark } from '../icons.js';
 import { openPreview } from '../preview.js';
 import { escapeHtml, diffColors, profileHtml, handleCoverError, compareTitle, coverSrc } from '../board.js';
 import { exportImage } from '../export.js';
+import { shareImage, shareButtonHtml } from '../share.js';
 import { loadHistory } from '../history.js';
 import { playPotential, gradeOf, isMaxScore, best30Average, oldMaxPotential } from '../calc.js';
 
@@ -520,8 +521,8 @@ function mount(container) {
                 </div>
                 <div class="summary-control"><span class="summary-label">並び</span><div class="chips">
                     ${SORTS.map(s => `<button type="button" class="chip" data-sort="${s.key}">${s.label}</button>`).join('')}</div></div>
-                <button type="button" class="btn-summary-export" data-area="${AREA_ID}">${iconLabel('camera', 'レポートを保存')}</button>
-                <button type="button" class="btn-summary-export" data-area="${RECORDS_AREA_ID}">${iconLabel('camera', '更新譜面を保存')}</button>
+                <div class="export-row"><button type="button" class="btn-summary-export" data-area="${AREA_ID}">${iconLabel('camera', 'レポートを保存')}</button>${shareButtonHtml(`data-area="${AREA_ID}"`)}</div>
+                <div class="export-row"><button type="button" class="btn-summary-export" data-area="${RECORDS_AREA_ID}">${iconLabel('camera', '更新譜面を保存')}</button>${shareButtonHtml(`data-area="${RECORDS_AREA_ID}"`)}</div>
             </div>
             <div class="gr-output"></div>
         </div>`;
@@ -535,6 +536,7 @@ function mount(container) {
         else if (ex && document.getElementById(b.dataset.area)) {
             hideTip();
             if (b.classList.contains('btn-summary-export')) exportImage(b.dataset.area, ex.file(state.unit), b, profile);
+            else if (b.classList.contains('btn-share')) shareImage(b.dataset.area, ex.file(state.unit), ex.label, b, profile);
             else if (b.classList.contains('gm-preview')) openPreview(b.dataset.area, ex.file(state.unit), ex.label, profile);
         }
     });

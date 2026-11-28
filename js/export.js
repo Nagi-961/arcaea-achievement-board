@@ -50,30 +50,42 @@ export async function exportJson(data) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// 保存するファイル名(頭にデータ収集日を付ける)
+export function imageFilename(filename, profile) {
+    return fileDatePrefix(profile) + '_' + filename;
+}
+
+// 保存範囲を画像(canvas)にする
+export async function captureCanvas(areaId) {
+    const element = document.getElementById(areaId);
+    // 見出しの Web フォントが読み込み終わってから撮る
+    await document.fonts.ready;
+    // 角丸の外側の下地。テーマの保存範囲の色に合わせる
+    const backgroundColor = getComputedStyle(element).getPropertyValue('--capture-solid').trim() || null;
+    return html2canvas(element, { backgroundColor, scale: 2.5, useCORS: true });
+}
+
+export function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = url;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export async function exportImage(areaId, filename, btn, profile) {
     const originalHtml = btn.innerHTML;
     btn.textContent = "生成中...";
     btn.classList.add('busy');
-    const element = document.getElementById(areaId);
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
     try {
-        // 見出しの Web フォントが読み込み終わってから撮る
-        await document.fonts.ready;
-        // 角丸の外側の下地。テーマの保存範囲の色に合わせる
-        const backgroundColor = getComputedStyle(element).getPropertyValue('--capture-solid').trim() || null;
-        const canvas = await html2canvas(element, { backgroundColor, scale: 2.5, useCORS: true });
+        const canvas = await captureCanvas(areaId);
         if (isIOS) {
             showModal(canvas.toDataURL('image/png'));
         } else {
-            canvas.toBlob(blob => {
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.download = fileDatePrefix(profile) + '_' + filename;
-                link.href = url;
-                link.click();
-                setTimeout(() => URL.revokeObjectURL(url), 1000);
-            }, 'image/png');
+            canvas.toBlob(blob => downloadBlob(blob, imageFilename(filename, profile)), 'image/png');
         }
     } catch (err) {
         alert("画像生成中にエラーが発生しました。\n" + err);

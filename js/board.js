@@ -261,7 +261,7 @@ function listSectionHtml(sec, grouped, style, areaId, active) {
         return `<div class="bl-group"><h3 class="bl-cc">CC ${c.toFixed(1)}<span>${grouped[c].length} 譜面</span></h3>${rows}</div>`;
     }).join('');
     return `<div class="bl-section" data-sec="${sec.key}"${active ? '' : ' hidden'}>
-            <button class="btn-preview" type="button" data-area="${areaId}" data-label="${sec.label}${style.sectionSuffix}" data-filename="arcaea_${style.key}_${sec.key}.png">${iconLabel('camera', `${sec.label} の画像を作る`)}</button>
+            <button class="btn-preview" type="button" data-area="${areaId}" data-label="実績表（${sec.label}・${style.label}）" data-filename="arcaea_${style.key}_${sec.key}.png">${iconLabel('camera', `${sec.label} の画像を作る`)}</button>
             ${groups}
         </div>`;
 }
@@ -315,7 +315,10 @@ export function renderBoard(songs, profile, feature) {
 
         // 保存ボタンは画像に写らないよう、保存範囲(capture-area)の外の真上に置く
         areasHtml += `<div class="board-section">
-                        <button class="btn-export" data-area="${areaId}" data-filename="arcaea_${style.key}_${sec.key}.png">${iconLabel('camera', `${sec.label} を保存`)}</button>
+                        <div class="export-row">
+                            <button class="btn-export" data-area="${areaId}" data-filename="arcaea_${style.key}_${sec.key}.png">${iconLabel('camera', `${sec.label} を保存`)}</button>
+                            <button type="button" class="btn-share" data-area="${areaId}" data-filename="arcaea_${style.key}_${sec.key}.png" data-label="実績表（${sec.label}・${style.label}）">${iconLabel('share', '共有')}</button>
+                        </div>
                         <div id="${areaId}" class="capture-area">
                         <div class="header-container">
                             <div>

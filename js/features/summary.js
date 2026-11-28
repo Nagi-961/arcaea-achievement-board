@@ -5,6 +5,7 @@ import { icon, iconLabel, crownMark } from '../icons.js';
 import { escapeHtml, levelSortKey, profileHtml, diffChipColor } from '../board.js';
 import { exportImage } from '../export.js';
 import { openPreview } from '../preview.js';
+import { shareImage, shareButtonHtml } from '../share.js';
 import { mountSeg } from '../motion.js';
 
 const GRADES = [
@@ -268,7 +269,7 @@ function mount(container) {
                 <div class="summary-control"><span class="summary-label">レベル</span>
                     <select class="summary-min"></select> 〜 <select class="summary-max"></select></div>
                 <div class="summary-control"><span class="summary-label">行</span><div class="summary-rows seg" data-seg="summary-rows" role="group" aria-label="行"></div></div>
-                <button type="button" class="btn-summary-export">${iconLabel('camera', '画像を保存')}</button>
+                <div class="export-row"><button type="button" class="btn-summary-export">${iconLabel('camera', '画像を保存')}</button>${shareButtonHtml()}</div>
                 <p class="summary-note">PST・PRS のスコアは、取得方法で「全難易度」などを選んで取得したデータが必要です。</p>
             </div>
             <div class="summary-output"></div>
@@ -287,6 +288,9 @@ function mount(container) {
     });
     container.querySelector('.btn-summary-export').addEventListener('click', e => {
         if (document.getElementById(AREA_ID)) exportImage(AREA_ID, 'arcaea_summary.png', e.currentTarget, profile);
+    });
+    container.querySelector('.btn-share').addEventListener('click', e => {
+        if (document.getElementById(AREA_ID)) shareImage(AREA_ID, 'arcaea_summary.png', '達成状況表', e.currentTarget, profile);
     });
     // スマホ幅: プレビューを開いて、そこから保存する
     container.querySelector('.summary-output').addEventListener('click', e => {

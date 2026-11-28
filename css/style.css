@@ -1066,6 +1066,36 @@ body.pv-open { overflow: hidden; }
     .board-style .seg-btn > span { justify-content: center; }
 }
 
+/* =========================================================
+   共有(share.js): 保存ボタンの隣の「共有」と、送り先を選ぶ画面
+   ========================================================= */
+.export-row { position: sticky; left: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: fit-content; margin-bottom: 10px; }
+.export-row .btn-export { position: static; margin-bottom: 0; }
+/* 共有ボタン: 枠つきの六角形(保存より一段控えめ) */
+.btn-share { --tip-base: 10px; --tip: calc(var(--tip-base) * var(--tip-scale)); position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px calc(12px + var(--tip)); border: 0; background: var(--border-strong); color: var(--text); font: inherit; font-weight: 700; cursor: pointer;
+    clip-path: polygon(var(--tip) 0, calc(100% - var(--tip)) 0, 100% 50%, calc(100% - var(--tip)) 100%, var(--tip) 100%, 0 50%); }
+.btn-share::before { content: ""; position: absolute; inset: 1px 1.5px; z-index: -1; background: var(--btn-face);
+    clip-path: polygon(calc(var(--tip) - 0.5px) 0, calc(100% - var(--tip) + 0.5px) 0, 100% 50%, calc(100% - var(--tip) + 0.5px) 100%, calc(var(--tip) - 0.5px) 100%, 0 50%); transition: background 0.2s; }
+.btn-share:hover { background: var(--accent); }
+.btn-share:hover::before { background: var(--btn-face-hover); }
+.btn-share.busy { filter: grayscale(1) brightness(0.8); }
+.pv-share { --tip-base: 7px; padding: 8px calc(8px + var(--tip)); }
+.pv-row .pv-share { margin-left: auto; }
+.pv-row .pv-share + .pv-save { margin-left: 0; }
+
+.share-modal { position: fixed; inset: 0; z-index: 60000; display: grid; place-items: center; padding: 16px; background: var(--overlay-bg); animation: viewIn 0.25s ease-out; }
+.share-card { width: min(460px, 100%); max-height: calc(100vh - 32px); overflow: auto; box-sizing: border-box; padding: 18px; background: var(--surface-solid); border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 12px; }
+.share-head { display: flex; align-items: center; justify-content: space-between; font-weight: 700; }
+.share-title { display: inline-flex; align-items: center; gap: 8px; }
+.share-thumb { width: 100%; max-height: 38vh; object-fit: contain; border-radius: 8px; border: 1px solid var(--border); background: var(--cell-bg); }
+.share-text { width: 100%; box-sizing: border-box; resize: none; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--cell-bg); color: var(--text-sub); font: inherit; font-size: 0.88em; line-height: 1.5; }
+.share-native { width: 100%; }
+.share-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.share-opt { flex: 1 1 auto; justify-content: center; display: inline-flex; align-items: center; }
+.share-status { margin: 0; min-height: 1.4em; color: var(--ok); font-size: 0.9em; font-weight: 700; }
+.share-hint { margin: 0; color: var(--text-muted); font-size: 0.82em; }
+
 /* OS で「視差効果を減らす」を選んでいる人には動きを止める */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0s !important; transition-duration: 0.01ms !important; }
