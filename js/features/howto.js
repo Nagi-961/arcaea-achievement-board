@@ -16,23 +16,58 @@ const DEVICES = [
 ];
 
 // 手順のスクリーンショット: img/howto/ に置いたファイルだけをここに書く(書いていない画像は読みに行かない = 404 を出さない)
-// 例: iphone: { register: [{ file: 'iphone-register-1.png', caption: '共有ボタン →「ブックマークを追加」' }] }
+// 画像はルートの make_howto_shots.py で、元画像(howto_src/)を切り抜き・印を付けて作る
 const SHOTS = {
-    iphone: {},
-    android: {},
-    pc: {},
-    common: {},
+    iphone: {
+        register: [
+            { file: 'ios_1.webp', caption: '本のアイコンを長押し' },
+            { file: 'ios_2.webp', caption: '「ブックマークを追加」をタップして保存' },
+            { file: 'ios_3.webp', caption: '本のアイコンをタップして一覧を開き、追加したブックマークを長押し' },
+            { file: 'ios_4.webp', caption: '「編集」をタップ' },
+            { file: 'ios_5.webp', caption: 'アドレスを消してコードを貼り付け、「保存」(画像では名前を「データ取得」にしています)' },
+        ],
+        run: [
+            { file: 'ios_6.webp', caption: 'Arcaea Online を開いたまま、本のアイコン → 登録したブックマークをタップ' },
+        ],
+    },
+    android: {
+        register: [
+            { file: 'android_1.webp', caption: 'メニュー(︙)の ☆ をタップしてブックマーク' },
+            { file: 'android_2.webp', caption: '下に出る「編集」から、名前を変えて URL にコードを貼り付け' },
+        ],
+        run: [
+            { file: 'android_3.webp', caption: 'Arcaea Online を開いたまま、アドレスバーをタップ' },
+            { file: 'android_4.webp', caption: '登録した名前を入力して、☆ の付いた候補をタップ(画像では「データ取得」)' },
+        ],
+    },
+    pc: {
+        register: [
+            { file: 'pc_1.webp', caption: '「arcaea取得」ボタンを、ブックマークバーへドラッグ', wide: true },
+        ],
+        run: [
+            { file: 'pc_2.webp', caption: 'ブックマークバーの「arcaea取得」をクリックし、出てきた画面で「取得開始」', wide: true },
+        ],
+    },
+    // どの端末でも同じ画面。devices を書いたものは、その端末だけに出す
+    common: {
+        run: [
+            { file: 'choose.webp', caption: '取得する内容を選んで「取得開始」(そのままでOK)', wide: true, devices: ['iphone', 'android'] },
+        ],
+        send: [
+            { file: 'done.webp', caption: '取得が終わったら「サイトに送る」', wide: true },
+        ],
+    },
 };
 
 // 端末ごとの手順の文
 const STEPS = {
     iphone: {
         register: [
-            '適当なページ(このページでOK)で、画面下の共有ボタン →「ブックマークを追加」で保存します。',
-            'ブックマーク一覧(本のアイコン)を開き、右下の「編集」→ いま追加したブックマークをタップします。',
-            '名前を「arcaea取得」などにし、アドレスを消して、コピーしたコードを貼り付けて保存します。',
+            'このページのまま、Safari の本のアイコン(ブックマーク)を長押しし、「ブックマークを追加」を押して保存します。',
+            '本のアイコンをタップしてブックマーク一覧を開き、いま追加したブックマークを長押し →「編集」を押します。',
+            '名前を「arcaea取得」などにし、アドレスを消して、コピーしたコードを貼り付けて「保存」を押します。',
         ],
-        run: ['Arcaea Online を開いたまま、ブックマーク一覧から「arcaea取得」をタップします。'],
+        run: ['Arcaea Online を開いたまま、本のアイコンをタップしてブックマーク一覧を開き、「arcaea取得」をタップします。'],
     },
     android: {
         register: [
@@ -93,10 +128,13 @@ async function copyText(text, textarea) {
 }
 
 function shotsHtml(device, step) {
-    const list = [...(SHOTS[device]?.[step] || []), ...(SHOTS.common[step] || [])];
+    const common = (SHOTS.common[step] || []).filter(s => !s.devices || s.devices.includes(device));
+    const list = [...(SHOTS[device]?.[step] || []), ...common];
     if (!list.length) return '';
-    return `<div class="howto-shots">${list.map(s => `
-        <figure class="howto-shot"><img src="img/howto/${s.file}" alt="${s.caption}" loading="lazy"><figcaption>${s.caption}</figcaption></figure>`).join('')}</div>`;
+    // 横に並べてスクロール。番号を付けて順番を分かりやすくし、押すと原寸の画像を新しいタブで開く
+    return `<div class="howto-shots">${list.map((s, i) => `
+        <figure class="howto-shot${s.wide ? ' wide' : ''}"><a href="img/howto/${s.file}" target="_blank" rel="noopener"><img src="img/howto/${s.file}" alt="${s.caption}" loading="lazy"></a>
+            <figcaption>${list.length > 1 ? `<span class="howto-shot-no">${i + 1}</span>` : ''}${s.caption}</figcaption></figure>`).join('')}</div>`;
 }
 
 function listHtml(lines) {

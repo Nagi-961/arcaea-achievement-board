@@ -623,12 +623,17 @@ body.pv-open { overflow: hidden; }
 .howto-shot { flex: none; width: 200px; margin: 0; }
 .howto-shot img { width: 100%; border-radius: 8px; border: 1px solid var(--border-strong); display: block; }
 .howto-shot figcaption { margin-top: 4px; font-size: 0.82em; color: var(--text-muted); line-height: 1.5; }
+.howto-shot-no { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 5px; border-radius: 50%; background: var(--accent-grad); color: var(--accent-text); font-size: 0.85em; font-weight: 700; vertical-align: 1px; }
+.howto-shots { scroll-snap-type: x proximity; }
+.howto-shot { scroll-snap-align: start; }
+.howto-shot.wide { width: 420px; }
 @media (max-width: 768px) {
     .howto-device { display: flex; }
     .howto-device .seg-btn { flex: 1; padding: 8px 4px; white-space: nowrap; font-size: 0.92em; }
     .howto-device .seg-btn > span { justify-content: center; width: 100%; }
     .howto-step { padding: 12px; }
     .howto-shot { width: 46vw; }
+    .howto-shot.wide { width: 82vw; }
 }
 
 /* =========================================================

@@ -5,7 +5,7 @@
 (async function () {
     const MODES = {
         all: { label: '全難易度', diffs: [0, 1, 2, 3, 4] },
-        std: { label: 'FTR・BYD・ETR', diffs: [2, 3, 4] },
+        std: { label: 'FTR・BYD/INS・ETR', diffs: [2, 3, 4] },
         0: { label: 'PST', diffs: [0] },
         1: { label: 'PRS', diffs: [1] },
         2: { label: 'FTR', diffs: [2] },
