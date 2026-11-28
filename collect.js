@@ -1,10 +1,11 @@
 // Arcaea Online のページ上で実行して、スコアを all.json として保存するスクリプト
-// ブックマークレットから collect.js?d=<モード>&inc=1 の形で読み込む（d がなければ従来どおり FTR/BYD/ETR）
-// inc=1 なら増分取得: 前回分と同じ記録が出てきたところでページ送りをやめる（新しく更新した順に並んでいるため）
+// ブックマークレットから collect.js を読み込む。d がなければ、最初に取得する内容(難易度・増分 / 全件)を選ぶ画面を出す
+// (前の形のブックマーク collect.js?d=<モード>&inc=1 は、選ぶ画面を出さずにそのモードで取る)
+// 増分取得: 前回分と同じ記録が出てきたところでページ送りをやめる（新しく更新した順に並んでいるため）
 (async function () {
     const MODES = {
-        std: { label: 'FTR・BYD・ETR', diffs: [2, 3, 4] },
         all: { label: '全難易度', diffs: [0, 1, 2, 3, 4] },
+        std: { label: 'FTR・BYD・ETR', diffs: [2, 3, 4] },
         0: { label: 'PST', diffs: [0] },
         1: { label: 'PRS', diffs: [1] },
         2: { label: 'FTR', diffs: [2] },
@@ -16,23 +17,126 @@
     const BACKUP_KEY = 'arcaea_collect_backup_v1';
     const API = 'https://webapi.lowiro.com/webapi';
 
+    // 選ぶ画面で前回選んだもの（Arcaea Online 側のブラウザに保存）
+    const CHOICE_KEY = 'arcaea_collect_choice_v1';
+
     const scriptSrc = document.currentScript ? document.currentScript.src : '';
     const params = new URLSearchParams(scriptSrc.split('?')[1] || '');
-    const modeKey = params.get('d') || 'std';
-    const mode = MODES[modeKey] || MODES.std;
-    const incremental = params.get('inc') === '1';
     // データを送る先（collect.js を置いているサイト）
     const SITE_URL = scriptSrc ? new URL('./', scriptSrc).href : '';
     const SITE_ORIGIN = scriptSrc ? new URL(scriptSrc).origin : '';
-    const modeLabel = mode.label + (incremental ? '・増分' : '');
 
+    // 2回押されたときは、前の画面を閉じてから出し直す
+    document.getElementById('arcaea-collect-panel')?.remove();
     const div = document.createElement('div');
-    div.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:rgba(10,10,30,0.92);color:#ecebff;z-index:99999;padding:20px;font-size:16px;line-height:1.6;text-align:center;box-sizing:border-box;font-weight:bold;font-family:sans-serif;';
-    div.innerText = `Arcaeaのデータを取得中...（${modeLabel}）\nそのまま画面を閉じずにお待ちください`;
+    div.id = 'arcaea-collect-panel';
+    div.style.cssText = 'position:fixed;top:0;left:0;width:100%;max-height:100%;overflow:auto;background:rgba(10,10,30,0.94);color:#ecebff;z-index:99999;padding:20px;font-size:16px;line-height:1.6;text-align:center;box-sizing:border-box;font-weight:bold;font-family:sans-serif;';
     document.body.appendChild(div);
+
+    // Arcaea Online 以外のページで押されたときは、どこで押せばいいかを伝える
+    if (!/(^|\.)lowiro\.com$/.test(location.hostname)) {
+        div.innerText = 'このブックマークは Arcaea Online のページで押してください。\nArcaea Online を開いてログインしてから、もう一度押してください。\n';
+        const a = document.createElement('a');
+        a.href = 'https://arcaea.lowiro.com/';
+        a.textContent = 'Arcaea Online を開く';
+        a.style.cssText = 'color:#7fd8ff;display:inline-block;margin:8px;';
+        div.appendChild(a);
+        addButton('閉じる', () => div.remove());
+        return;
+    }
+
+    let modeKey = params.get('d');
+    const legacyCode = Boolean(modeKey);
+    let incremental = params.get('inc') === '1';
+    if (!modeKey) {
+        const choice = await chooseMode();
+        if (!choice) return;
+        modeKey = choice.mode;
+        incremental = choice.inc;
+    }
+    const mode = MODES[modeKey] || MODES.all;
+    const modeLabel = mode.label + (incremental ? '・増分' : '');
+    div.innerText = `Arcaeaのデータを取得中...（${modeLabel}）\nそのまま画面を閉じずにお待ちください`;
 
     const sleep = ms => new Promise(r => setTimeout(r, ms));
     const keyOf = s => s.song_id + '_' + s.difficulty;
+
+    // ボタンの見た目。primary: いちばん押してほしいもの / selected: 選んでいるもの
+    function styleButton(b, primary, selected) {
+        b.style.cssText = 'margin:5px;padding:9px 18px;font-size:15px;font-weight:bold;border-radius:999px;cursor:pointer;font-family:inherit;'
+            + (primary || selected ? 'background:linear-gradient(120deg,#4fd8ff,#8f7bff 55%,#d27bff);color:#fff;border:1px solid transparent;'
+                : 'background:rgba(255,255,255,0.08);color:#ecebff;border:1px solid rgba(140,150,255,0.4);')
+            + (primary ? 'padding:12px 34px;font-size:17px;' : '');
+    }
+
+    // 取得する内容を選ぶ画面。前回の選択を最初から選んだ状態にして、「取得開始」だけ押せば済むようにする
+    function chooseMode() {
+        let cur = { mode: 'all', inc: true };
+        try {
+            const saved = JSON.parse(localStorage.getItem(CHOICE_KEY));
+            if (saved && MODES[saved.mode]) cur = { mode: saved.mode, inc: saved.inc !== false };
+        } catch (e) { /* 前回分が読めなければおすすめの設定 */ }
+        return new Promise(resolve => {
+            div.replaceChildren();
+            const title = document.createElement('div');
+            title.textContent = '取得する内容を選んで「取得開始」を押してください';
+            title.style.cssText = 'margin-bottom:10px;';
+            div.appendChild(title);
+
+            const row = (label) => {
+                const r = document.createElement('div');
+                r.style.cssText = 'margin:6px 0;';
+                const l = document.createElement('div');
+                l.textContent = label;
+                l.style.cssText = 'font-size:13px;color:#a9a8d0;';
+                r.appendChild(l);
+                div.appendChild(r);
+                return r;
+            };
+            const modeRow = row('難易度');
+            const incRow = row('取得のしかた');
+            // 数字のキーはオブジェクトの先頭に並んでしまうので、並び順はここで決める
+            const modeButtons = ['all', 'std', '0', '1', '2', '3', '4'].map(key => [key, MODES[key]]).map(([key, m]) => {
+                const b = document.createElement('button');
+                b.textContent = key === 'all' ? m.label + '（おすすめ）' : m.label;
+                b.addEventListener('click', () => { cur.mode = key; paint(); });
+                modeRow.appendChild(b);
+                return [key, b];
+            });
+            const incButtons = [[true, '増分（速い・おすすめ）'], [false, '全件']].map(([inc, label]) => {
+                const b = document.createElement('button');
+                b.textContent = label;
+                b.addEventListener('click', () => { cur.inc = inc; paint(); });
+                incRow.appendChild(b);
+                return [inc, b];
+            });
+            const note = document.createElement('div');
+            note.textContent = '増分は前回から更新された譜面だけを取るので速いです（初回は全件になります）。前回の選択は次も覚えています。';
+            note.style.cssText = 'font-size:12px;font-weight:normal;color:#a9a8d0;margin:6px auto 4px;max-width:640px;';
+            div.appendChild(note);
+            const actions = document.createElement('div');
+            div.appendChild(actions);
+            const start = document.createElement('button');
+            start.textContent = '取得開始';
+            styleButton(start, true);
+            start.addEventListener('click', () => {
+                try { localStorage.setItem(CHOICE_KEY, JSON.stringify(cur)); } catch (e) { /* 保存できなくても取得はする */ }
+                div.replaceChildren();
+                resolve(cur);
+            });
+            const cancel = document.createElement('button');
+            cancel.textContent = 'やめる';
+            styleButton(cancel, false);
+            cancel.addEventListener('click', () => { div.remove(); resolve(null); });
+            actions.append(start, cancel);
+
+            function paint() {
+                modeButtons.forEach(([key, b]) => styleButton(b, false, key === cur.mode));
+                incButtons.forEach(([inc, b]) => styleButton(b, false, inc === cur.inc));
+            }
+            paint();
+        });
+    }
 
     function loadBackup() {
         try {
@@ -71,9 +175,7 @@
     function addButton(label, fn, primary) {
         const b = document.createElement('button');
         b.textContent = label;
-        b.style.cssText = 'margin:6px;padding:10px 20px;font-size:16px;font-weight:bold;border-radius:999px;cursor:pointer;'
-            + (primary ? 'background:linear-gradient(120deg,#4fd8ff,#8f7bff 55%,#d27bff);color:#fff;border:none;'
-                : 'background:rgba(255,255,255,0.08);color:#ecebff;border:1px solid rgba(140,150,255,0.4);');
+        styleButton(b, primary);
         b.addEventListener('click', fn);
         div.appendChild(b);
     }
@@ -154,7 +256,10 @@
             + `${profile.name} (Rate: ${rating})\n`
             + `最終更新: ${profile.last_updated}\n`
             + (backupSaved ? '' : '※ このブラウザに前回分を保存できませんでした\n')
-            + '\n「サイトに送る」でそのまま読み込めます（ファイル保存も可）\n';
+            + '\n「サイトに送る」でそのまま読み込めます（ファイル保存も可）\n'
+            // 前の形のコード(設定入り)で実行した人にだけ、新しいコードへの更新をすすめる。前のコードもそのまま使える
+            + (legacyCode ? '\n【お知らせ】ブックマークのコードが新しくなりました。サイトの「取得方法」から新しいコードをコピーして登録し直すと、'
+                + '押したときに難易度などを選べるようになります（今のコードもこのまま使えます）\n' : '');
 
         // サイトを新しいタブで開き、準備ができた合図(arcaea-ready)が来たらデータを渡す
         addButton('サイトに送る', () => {

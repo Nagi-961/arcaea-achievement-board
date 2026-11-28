@@ -1,7 +1,7 @@
 // スコア目標計算機: 目標スコアと内部精度の失点から、許容できる FAR / LOST を計算する
 // all.json がなくても master.csv のノーツ数だけで使える。データがあれば自己ベストとの差も出す
 import { icon, iconLabel } from '../icons.js';
-import { escapeHtml, compareTitle, diffColors, levelSortKey } from '../board.js';
+import { escapeHtml, compareTitle, diffColors, diffChipColor, levelSortKey } from '../board.js';
 import { calcScore } from '../calc.js';
 
 // まずはノーツ数がそろっている FTR / BYD / INS / ETR に限定する
@@ -243,7 +243,7 @@ function mount(container) {
             </div>
             <div class="tg-listbox summary-controls" hidden>
                 <div class="summary-control"><span class="summary-label">難易度</span><div class="chips">
-                    ${DIFFS.map(d => `<button type="button" class="chip" data-listdiff="${d.key}">${d.label}</button>`).join('')}</div></div>
+                    ${DIFFS.map(d => `<button type="button" class="chip chip-diff" data-listdiff="${d.key}" data-diff="${d.key}" style="--dc:${diffChipColor(d.key)};">${d.label}</button>`).join('')}</div></div>
                 <div class="summary-control"><span class="summary-label">レベル</span><select class="tg-minlv"></select> 以上</div>
                 <div class="summary-control"><input type="search" class="tg-input tg-listsearch" placeholder="曲名で絞り込み"></div>
             </div>

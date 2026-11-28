@@ -6,7 +6,7 @@ import { renderBoard, handleCoverError, isCoversOff, setCoversOff, handleListTab
 import { openPreview } from './preview.js';
 import { gradeOfRecord } from './calc.js';
 import { icon, iconLabel, mountIcons } from './icons.js';
-import { enableDetailsSlide } from './motion.js';
+import { enableDetailsSlide, mountSeg } from './motion.js';
 import achievement from './features/achievement.js';
 import summary from './features/summary.js';
 import growth from './features/growth.js';
@@ -112,7 +112,9 @@ function selectTool(mode) {
 }
 
 function renderBoardView(f) {
-    document.getElementById(`view-${f.id}`).innerHTML = renderBoard(boardSongs, playerProfile, f);
+    const view = document.getElementById(`view-${f.id}`);
+    view.innerHTML = renderBoard(boardSongs, playerProfile, f);
+    view.querySelectorAll('.seg').forEach(mountSeg);
 }
 
 function showData(data, savedAt) {
@@ -266,11 +268,19 @@ function buildToolCards() {
         desc.textContent = f.description;
         card.append(mark, title, desc);
         card.addEventListener('click', () => selectTool(f.id));
+        // 起動時アニメーションで1枚ずつ少し遅らせて出す
+        card.style.setProperty('--i', String(cards.children.length));
         cards.appendChild(card);
     });
 }
 
+// 起動時アニメーションが終わったら外す。ツールから戻ったときにもう一度動かないようにする
+function endIntro() {
+    setTimeout(() => document.documentElement.classList.remove('intro'), 5500);
+}
+
 async function main() {
+    endIntro();
     mountIcons();
     enableDetailsSlide();
     buildViews();

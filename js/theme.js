@@ -12,6 +12,8 @@
     const preferred = () => saved() || (media.matches ? 'light' : 'dark');
 
     root.dataset.theme = preferred();
+    // トップ画面の起動時アニメーション。描画前に付けて、要素が一瞬見えてから動き出すのを防ぐ(main.js が終わったら外す)
+    root.classList.add('intro');
 
     document.addEventListener('DOMContentLoaded', () => {
         const btn = document.getElementById('theme-toggle');

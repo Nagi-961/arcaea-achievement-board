@@ -4,7 +4,19 @@
 import { icon, iconLabel, crownMark } from './icons.js';
 import { playPotential } from './calc.js';
 
-export const diffColors = { "FTR": "#9932cc", "ETR": "#a98be8", "BYD": "#dc143c", "INS": "#1e90ff", "PST": "#4fc3f7", "PRS": "#81c784" };
+export const diffColors = { "FTR": "#9932cc", "ETR": "#a98be8", "BYD": "#dc143c", "INS": "#2a52d8", "PST": "#4fc3f7", "PRS": "#81c784" };
+// 難易度を選ぶチップの塗り。べた塗りにせず、左上を明るく・右下を暗くしたグラデーションにする。
+// BYD と INS は同じ枠(all.json ではどちらも 3)なので、赤から青へ斜めに分ける
+const tint = (c, p) => `color-mix(in srgb, ${c} ${p}%, #fff)`;
+const shade = (c, p) => `color-mix(in srgb, ${c} ${p}%, #000)`;
+export function diffChipColor(key) {
+    if (key === 'BYD') {
+        const r = diffColors.BYD, b = diffColors.INS;
+        return `linear-gradient(125deg, ${tint(r, 72)} 0%, ${r} 44%, ${b} 56%, ${shade(b, 78)} 100%)`;
+    }
+    const c = diffColors[key];
+    return `linear-gradient(125deg, ${tint(c, 70)} 0%, ${c} 55%, ${shade(c, 80)} 100%)`;
+}
 // ランクの色。値は css/style.css のテーマごとの変数(ダーク / ライトで切り替わる)
 const BAR = 'var(--tile-bar-bg)';
 const gradeColors = {
@@ -279,9 +291,9 @@ export function renderBoard(songs, profile, feature) {
     const summaryHtml = summaryTableHtml(songs);
     const off = isCoversOff();
     const styleChips = feature.styles.map(s =>
-        `<button class="chip${s.key === style.key ? ' active' : ''}" type="button" data-style="${s.key}" aria-pressed="${s.key === style.key}">${icon(s.icon)}${s.label}</button>`).join('');
+        `<button class="seg-btn${s.key === style.key ? ' active' : ''}" type="button" data-style="${s.key}" aria-pressed="${s.key === style.key}"><span>${icon(s.icon)}${s.label}</span></button>`).join('');
     let areasHtml = `<div class="board-controls">
-            <div class="chips board-style" role="group" aria-label="表示">${styleChips}</div>
+            <div class="seg board-style" data-seg="board-style-${feature.id}" role="group" aria-label="表示">${styleChips}</div>
             <button class="btn-cover-toggle" type="button" aria-pressed="${off}">${coverToggleLabel(off)}</button>
         </div>`;
     let tabsHtml = '', listHtml = '';

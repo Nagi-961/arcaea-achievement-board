@@ -2,9 +2,10 @@
 // PC幅では保存用の表をそのまま見せる。スマホ幅ではレベルごとのカード(積み上げバー、タップで内訳)を見せ、
 // 保存は「画像を作る」のプレビュー(preview.js)から行う
 import { icon, iconLabel, crownMark } from '../icons.js';
-import { escapeHtml, levelSortKey, profileHtml } from '../board.js';
+import { escapeHtml, levelSortKey, profileHtml, diffChipColor } from '../board.js';
 import { exportImage } from '../export.js';
 import { openPreview } from '../preview.js';
+import { mountSeg } from '../motion.js';
 
 const GRADES = [
     // 色は css/style.css のテーマごとの変数
@@ -202,10 +203,28 @@ function renderTable() {
         ${mobileHtml(rows, total)}`;
 }
 
-function chip(label, active, onClick) {
+// 切り替え(.seg)のボタン。斜めの札なので、文字は中の span で傾きを戻す
+function segBtn(label, active, onClick) {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'chip' + (active ? ' active' : '');
+    b.className = 'seg-btn' + (active ? ' active' : '');
+    b.setAttribute('aria-pressed', String(active));
+    const span = document.createElement('span');
+    span.textContent = label;
+    b.append(span);
+    b.addEventListener('click', () => { if (!b.classList.contains('active')) onClick(); });
+    return b;
+}
+
+// diff: 難易度のチップなら、その難易度(枠と選んだときの塗りをその色にする)
+function chip(label, active, onClick, diff) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip' + (active ? ' active' : '') + (diff ? ' chip-diff' : '');
+    if (diff) {
+        b.dataset.diff = diff;
+        b.style.setProperty('--dc', diffChipColor(diff));
+    }
     b.textContent = label;
     b.addEventListener('click', onClick);
     return b;
@@ -218,13 +237,14 @@ function renderControls() {
         if (state.diffs.has(d.key) && state.diffs.size > 1) state.diffs.delete(d.key);
         else state.diffs.add(d.key);
         refresh();
-    })));
+    }, d.key)));
 
     const rowsBox = view.querySelector('.summary-rows');
     rowsBox.replaceChildren(
-        chip('レベルごと', state.rowsBy === 'level', () => { state.rowsBy = 'level'; refresh(); }),
-        chip('難易度ごと', state.rowsBy === 'diff', () => { state.rowsBy = 'diff'; refresh(); }),
+        segBtn('レベルごと', state.rowsBy === 'level', () => { state.rowsBy = 'level'; refresh(); }),
+        segBtn('難易度ごと', state.rowsBy === 'diff', () => { state.rowsBy = 'diff'; refresh(); }),
     );
+    mountSeg(rowsBox);
 
     const levels = levelsOf(allSongs);
     ['min', 'max'].forEach(which => {
@@ -247,7 +267,7 @@ function mount(container) {
                 <div class="summary-control"><span class="summary-label">難易度</span><div class="summary-diffs chips"></div></div>
                 <div class="summary-control"><span class="summary-label">レベル</span>
                     <select class="summary-min"></select> 〜 <select class="summary-max"></select></div>
-                <div class="summary-control"><span class="summary-label">行</span><div class="summary-rows chips"></div></div>
+                <div class="summary-control"><span class="summary-label">行</span><div class="summary-rows seg" data-seg="summary-rows" role="group" aria-label="行"></div></div>
                 <button type="button" class="btn-summary-export">${iconLabel('camera', '画像を保存')}</button>
                 <p class="summary-note">PST・PRS のスコアは、取得方法で「全難易度」などを選んで取得したデータが必要です。</p>
             </div>

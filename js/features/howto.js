@@ -1,28 +1,84 @@
-// 取得方法: collect.js を呼ぶブックマークレットの選択・コピーと、登録・実行手順の説明
+// 取得方法: collect.js を呼ぶブックマークレットのコピーと、登録・実行の手順(端末ごと・画像付き)
+// 取得する難易度や増分 / 全件は、ここでは選ばない。ブックマークを実行したときに Arcaea Online 側の画面(collect.js)で選ぶ
 import { icon, iconLabel } from '../icons.js';
+import { mountSeg } from '../motion.js';
 
-// 先頭が最初に選ばれている状態になる
-const MODES = [
-    { key: 'all', label: '全難易度（おすすめ）' },
-    { key: 'std', label: 'FTR・BYD・ETR' },
-    { key: '0', label: 'PSTのみ' },
-    { key: '1', label: 'PRSのみ' },
-    { key: '2', label: 'FTRのみ' },
-    { key: '3', label: 'BYD/INSのみ' },
-    { key: '4', label: 'ETRのみ' },
-];
-// 取得のしかた。増分は前回分と同じ記録が出たところで取得をやめるので速い
-const FETCH_TYPES = [
-    { key: 'inc', label: '増分（速い・おすすめ）', icon: 'zap' },
-    { key: 'full', label: '全件', icon: 'box' },
-];
 const ARCAEA_ONLINE_URL = 'https://arcaea.lowiro.com/';
+// ブックマークの登録が済んだか(済んだら、次からは登録の手順をたたんで 3〜5 だけ見せる)
+const REGISTERED_KEY = 'arcaea_howto_registered_v1';
+// 端末の選択(自動判定を手で変えたとき)
+const DEVICE_KEY = 'arcaea_howto_device_v1';
 
-// 公開中のURLから collect.js の場所を決める（ローカル確認時は localhost を指す）
-function bookmarkletCode(modeKey, fetchType) {
+const DEVICES = [
+    { key: 'iphone', label: 'iPhone', icon: 'phone' },
+    { key: 'android', label: 'Android', icon: 'phone' },
+    { key: 'pc', label: 'PC', icon: 'monitor' },
+];
+
+// 手順のスクリーンショット: img/howto/ に置いたファイルだけをここに書く(書いていない画像は読みに行かない = 404 を出さない)
+// 例: iphone: { register: [{ file: 'iphone-register-1.png', caption: '共有ボタン →「ブックマークを追加」' }] }
+const SHOTS = {
+    iphone: {},
+    android: {},
+    pc: {},
+    common: {},
+};
+
+// 端末ごとの手順の文
+const STEPS = {
+    iphone: {
+        register: [
+            '適当なページ(このページでOK)で、画面下の共有ボタン →「ブックマークを追加」で保存します。',
+            'ブックマーク一覧(本のアイコン)を開き、右下の「編集」→ いま追加したブックマークをタップします。',
+            '名前を「arcaea取得」などにし、アドレスを消して、コピーしたコードを貼り付けて保存します。',
+        ],
+        run: ['Arcaea Online を開いたまま、ブックマーク一覧から「arcaea取得」をタップします。'],
+    },
+    android: {
+        register: [
+            '適当なページ(このページでOK)で、右上のメニュー(︙)の ☆ を押してブックマークします。',
+            '下に出る「編集」を押し、名前を「arcaea取得」などにします。',
+            'URL の欄を消して、コピーしたコードを貼り付けて保存します。',
+        ],
+        run: ['Arcaea Online を開いたまま、アドレスバーに「arcaea取得」と入力し、候補に出てくる ☆ 付きのものをタップします。',
+            '(Chrome はブックマーク一覧から開くと動かないので、必ずアドレスバーから選んでください)'],
+    },
+    pc: {
+        register: [
+            '上の「arcaea取得」ボタンを、ブラウザのブックマークバーへドラッグします。それだけで登録できます。',
+            'ブックマークバーが出ていないときは Ctrl + Shift + B(Mac は ⌘ + Shift + B)で表示できます。',
+        ],
+        run: ['Arcaea Online を開いたまま、ブックマークバーの「arcaea取得」をクリックします。'],
+    },
+};
+
+// 公開中のURLから collect.js の場所を決める(ローカル確認時は localhost を指す)
+function bookmarkletCode() {
     const src = new URL('collect.js', location.href).href;
-    const inc = fetchType === 'inc' ? '&inc=1' : '';
-    return `javascript:(()=>{const s=document.createElement('script');s.src='${src}?d=${modeKey}${inc}&t='+Date.now();document.body.appendChild(s)})();`;
+    return `javascript:(()=>{const s=document.createElement('script');s.src='${src}?t='+Date.now();document.body.appendChild(s)})();`;
+}
+
+function detectDevice() {
+    try {
+        const saved = localStorage.getItem(DEVICE_KEY);
+        if (DEVICES.some(d => d.key === saved)) return saved;
+    } catch { /* 読めなければ自動判定 */ }
+    const ua = navigator.userAgent;
+    // iPad の Safari は Mac と名乗るので、タッチできるかで見分ける
+    if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'iphone';
+    if (/Android/.test(ua)) return 'android';
+    return 'pc';
+}
+
+function isRegistered() {
+    try { return localStorage.getItem(REGISTERED_KEY) === '1'; } catch { return false; }
+}
+
+function setRegistered(on) {
+    try {
+        if (on) localStorage.setItem(REGISTERED_KEY, '1');
+        else localStorage.removeItem(REGISTERED_KEY);
+    } catch { /* 保存できなくても表示は切り替える */ }
 }
 
 async function copyText(text, textarea) {
@@ -36,83 +92,140 @@ async function copyText(text, textarea) {
     }
 }
 
+function shotsHtml(device, step) {
+    const list = [...(SHOTS[device]?.[step] || []), ...(SHOTS.common[step] || [])];
+    if (!list.length) return '';
+    return `<div class="howto-shots">${list.map(s => `
+        <figure class="howto-shot"><img src="img/howto/${s.file}" alt="${s.caption}" loading="lazy"><figcaption>${s.caption}</figcaption></figure>`).join('')}</div>`;
+}
+
+function listHtml(lines) {
+    return `<ol class="howto-substeps">${lines.map(l => `<li>${l}</li>`).join('')}</ol>`;
+}
+
+function stepsHtml(device, code) {
+    const s = STEPS[device];
+    const registered = isRegistered();
+    // PC はドラッグで登録できるので、コピーより先にドラッグ用のボタンを出す
+    const copyBlock = device === 'pc'
+        ? `<a class="howto-drag" href="${code}" draggable="true">${icon('bookmark')}arcaea取得</a>
+           <p class="howto-note">ドラッグできないブラウザでは、コードをコピーしてブックマークの URL に貼り付けてください。</p>
+           <details class="howto-code-wrap"><summary>コードを表示</summary>
+               <textarea class="howto-code" readonly rows="3"></textarea>
+               <button type="button" class="howto-copy">${iconLabel('copy', 'コードをコピー')}</button></details>`
+        : `<button type="button" class="howto-copy howto-copy-main">${iconLabel('copy', 'コードをコピー')}</button>
+           <textarea class="howto-code" readonly rows="3"></textarea>`;
+
+    return `
+        <details class="howto-once slide"${registered ? '' : ' open'}>
+            <summary>${icon('bookmark')}<span>最初の1回だけ: ブックマークの登録</span>
+                ${registered ? `<span class="howto-done-badge">${icon('check')}登録済み</span>` : ''}</summary>
+            <div class="slide-body">
+                <section class="howto-step">
+                    <h3><span class="howto-num">1</span>${device === 'pc' ? '登録用のボタン' : 'コードをコピー'}</h3>
+                    ${copyBlock}
+                </section>
+                <section class="howto-step">
+                    <h3><span class="howto-num">2</span>ブックマークに登録</h3>
+                    ${listHtml(s.register)}
+                    ${shotsHtml(device, 'register')}
+                    <button type="button" class="howto-registered">${registered ? iconLabel('refresh', '登録をやり直す') : iconLabel('check', '登録できた')}</button>
+                </section>
+            </div>
+        </details>
+
+        <p class="howto-every">${icon('refresh')}ここから下が、毎回の取得の手順です</p>
+
+        <section class="howto-step">
+            <h3><span class="howto-num">3</span>Arcaea Online にログイン</h3>
+            <p><a href="${ARCAEA_ONLINE_URL}" target="_blank" rel="noopener">${ARCAEA_ONLINE_URL}</a> を開いてログインします。</p>
+            ${shotsHtml(device, 'login')}
+        </section>
+        <section class="howto-step">
+            <h3><span class="howto-num">4</span>ブックマークを実行して、取得する内容を選ぶ</h3>
+            ${listHtml([...s.run, '画面の上に選択画面が出るので、そのまま「取得開始」を押します(全難易度・増分がおすすめ。次からは前回の選択を覚えています)。'])}
+            ${shotsHtml(device, 'run')}
+            <p class="howto-note">増分: 前回から更新された譜面だけを取りに行くので、数秒〜十数秒で終わります(初回は全件取得になります)。
+                何かおかしいと感じたときは「全件」を選んでください。一部の難易度だけ取っても、前回までの分と合体して保存されます。</p>
+        </section>
+        <section class="howto-step">
+            <h3><span class="howto-num">5</span>サイトに送る</h3>
+            <p>取得が終わったら「サイトに送る」を押すと、このサイトが新しいタブで開き、そのままデータが読み込まれます。</p>
+            ${shotsHtml(device, 'send')}
+            <p class="howto-note">うまくいかないときは「保存」で all.json を保存し、このサイトの「all.json を選択」または「データ更新」から読み込んでください。
+                ポップアップがブロックされた場合は、ブラウザの設定で Arcaea Online のポップアップを許可してください。</p>
+        </section>`;
+}
+
 const HOWTO_HTML = `
     <div class="howto">
         <h2>${icon('download')}all.json の取り方</h2>
-        <p class="howto-note">Arcaea Online にログインした状態で、ブックマークに登録したコードを実行します。PC・スマホどちらでも使えます。</p>
-
-        <h3>1. 取得する難易度と取得のしかたを選んで、コードをコピー</h3>
-        <div class="howto-modes"></div>
-        <div class="howto-modes howto-fetch"></div>
-        <p class="howto-note">増分: 前回の取得から更新された譜面だけを取りに行くので、数秒〜十数秒で終わります（初回や、その難易度を前回取っていないときは全件取得になります）。
-            全件: 毎回すべてのページを取り直します。増分で何かおかしいと感じたときはこちらを使ってください。</p>
-        <textarea class="howto-code" readonly rows="3"></textarea>
-        <button type="button" class="howto-copy">${iconLabel('copy', 'コードをコピー')}</button>
-        <p class="howto-note">一部の難易度だけ取っても、前回までに取った分と合体して保存されます（同じブラウザで取得した場合）。
-            このサイトに読み込んだときも、保存済みのデータと合体します。</p>
-
-        <h3>2. ブックマークに登録</h3>
-        <ul>
-            <li><b>iPhone（Safari）</b>: 適当なページで共有ボタン →「ブックマークを追加」で保存 → ブックマーク一覧の「編集」からそのブックマークを開き、アドレスをコピーしたコードに置き換える</li>
-            <li><b>Android（Chrome）</b>: 適当なページでメニューの ☆ でブックマーク → 「編集」で URL をコピーしたコードに置き換える</li>
-            <li><b>PC</b>: ブックマークバーに適当なページを登録し、URL をコピーしたコードに置き換える</li>
-        </ul>
-        <p class="howto-note">名前は「arcaea取得」のように、入力しやすい短い名前がおすすめです。</p>
-        <p class="howto-point">${icon('check')}<span><b>ブックマークの登録は最初の1回だけでOKです。</b>次からは 3〜5 の手順だけで取得できます。
-            このサイトでコードの更新をお知らせしたときだけ、新しいコードをコピーして登録し直してください。</span></p>
-
-        <h3>3. Arcaea Online にログイン</h3>
-        <p><a href="${ARCAEA_ONLINE_URL}" target="_blank" rel="noopener">${ARCAEA_ONLINE_URL}</a> を開いてログインします。</p>
-
-        <h3>4. ブックマークを実行</h3>
-        <ul>
-            <li><b>iPhone</b>: Arcaea Online を開いたまま、ブックマーク一覧から登録したブックマークをタップ</li>
-            <li><b>Android</b>: アドレスバーに登録した名前（例: arcaea取得）を入力し、候補に出てきたブックマーク（☆のもの）をタップ</li>
-            <li><b>PC</b>: ブックマークバーのブックマークをクリック</li>
-        </ul>
-
-        <h3>5. サイトに送る</h3>
-        <p>取得が終わったら「サイトに送る」を押すと、このサイトが新しいタブで開き、そのままデータが読み込まれます。</p>
-        <p class="howto-note">うまくいかないときは「保存」で all.json を保存し、このサイトの「all.json を選択」または「データ更新」から読み込んでください。
-            ポップアップがブロックされた場合は、ブラウザの設定で Arcaea Online のポップアップを許可してください。</p>
+        <p class="howto-note">Arcaea Online にログインした状態で、ブックマークに登録したコードを実行します。お使いの端末を選んでください。</p>
+        <p class="howto-point howto-news">${icon('alert')}<span><b>2026/11 にコードが新しくなりました。</b>前のコードもそのまま使えますが、
+            新しいコードに登録し直すと、押したときに難易度などを選べるようになります(サイトでモードを選んでからコピーする必要がなくなります)。</span></p>
+        <div class="seg howto-device" role="group" aria-label="端末"></div>
+        <div class="howto-steps"></div>
     </div>`;
 
 // 最初の画面とタブの両方で使えるよう、渡された要素の中に説明を作る
 export function mountHowto(container) {
     container.innerHTML = HOWTO_HTML;
-    const modes = container.querySelector('.howto-modes');
-    const fetchBox = container.querySelector('.howto-fetch');
-    const code = container.querySelector('.howto-code');
-    const copyBtn = container.querySelector('.howto-copy');
-    const selected = { mode: MODES[0].key, fetch: FETCH_TYPES[0].key };
+    const deviceBox = container.querySelector('.howto-device');
+    const stepsBox = container.querySelector('.howto-steps');
+    deviceBox.dataset.seg = `howto-device-${container.id || 'main'}`;
+    const code = bookmarkletCode();
+    let device = detectDevice();
 
-    function refresh() {
-        modes.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.mode === selected.mode));
-        fetchBox.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.fetch === selected.fetch));
-        code.value = bookmarkletCode(selected.mode, selected.fetch);
+    function render() {
+        deviceBox.replaceChildren(...DEVICES.map(d => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'seg-btn' + (d.key === device ? ' active' : '');
+            b.setAttribute('aria-pressed', String(d.key === device));
+            b.innerHTML = `<span>${iconLabel(d.icon, d.label)}</span>`;
+            b.addEventListener('click', () => {
+                if (d.key === device) return;
+                device = d.key;
+                try { localStorage.setItem(DEVICE_KEY, device); } catch { /* 保存できなくても切り替える */ }
+                render();
+            });
+            return b;
+        }));
+        mountSeg(deviceBox);
+        stepsBox.innerHTML = stepsHtml(device, code);
+        stepsBox.querySelectorAll('.howto-code').forEach(t => { t.value = code; });
     }
 
-    function addChoice(box, label, data, onClick, iconName) {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'howto-mode';
-        Object.assign(b.dataset, data);
-        b.innerHTML = iconName ? iconLabel(iconName, label) : '';
-        if (!iconName) b.textContent = label;
-        b.addEventListener('click', () => { onClick(); refresh(); });
-        box.appendChild(b);
-    }
-
-    MODES.forEach(m => addChoice(modes, m.label, { mode: m.key }, () => { selected.mode = m.key; }, m.icon));
-    FETCH_TYPES.forEach(t => addChoice(fetchBox, t.label, { fetch: t.key }, () => { selected.fetch = t.key; }, t.icon));
-
-    copyBtn.addEventListener('click', async () => {
-        const ok = await copyText(code.value, code);
-        copyBtn.innerHTML = ok ? iconLabel('check', 'コピーしました') : iconLabel('alert', 'コピーできませんでした（長押しで選択してください）');
-        setTimeout(() => { copyBtn.innerHTML = iconLabel('copy', 'コードをコピー'); }, 2000);
+    // 描き直しても効くよう、操作は箱でまとめて受ける
+    stepsBox.addEventListener('click', async e => {
+        const copyBtn = e.target.closest('.howto-copy');
+        if (copyBtn) {
+            const ok = await copyText(code, copyBtn.parentElement.querySelector('.howto-code'));
+            const label = copyBtn.innerHTML;
+            copyBtn.innerHTML = ok ? iconLabel('check', 'コピーしました') : iconLabel('alert', 'コピーできませんでした(下の欄を長押しで選択してください)');
+            setTimeout(() => { copyBtn.innerHTML = label; }, 2000);
+            return;
+        }
+        // ドラッグ用のボタンは、このページで押しても意味がないので、ドラッグするよう伝える
+        const drag = e.target.closest('.howto-drag');
+        if (drag) {
+            e.preventDefault();
+            drag.classList.remove('nudge');
+            void drag.offsetWidth;
+            drag.classList.add('nudge');
+            drag.title = 'クリックではなく、ブックマークバーへドラッグしてください';
+            return;
+        }
+        if (e.target.closest('.howto-registered')) {
+            const next = !isRegistered();
+            setRegistered(next);
+            render();
+            // 登録できたら、毎回の手順(3〜5)が見えるところまで送る
+            if (next) stepsBox.querySelector('.howto-every')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
     });
 
-    refresh();
+    render();
 }
 
 export default {
